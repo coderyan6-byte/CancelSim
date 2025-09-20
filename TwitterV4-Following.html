@@ -1,0 +1,646 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Twiller</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            background-color: #000;
+            color: #fff;
+            display: flex;
+        }
+
+        .sidebar {
+            width: 250px;
+            background-color: #000;
+            border-right: 1px solid #333;
+            padding: 20px;
+        }
+
+            .sidebar h1 {
+                color: #1da1f2;
+                font-size: 28px;
+                margin-bottom: 30px;
+            }
+
+        #followers {
+            margin-top: 20px;
+            font-size: 18px;
+            font-weight: bold;
+            color: #1da1f2;
+        }
+
+        .main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border-left: 1px solid #333;
+        }
+
+        header {
+            padding: 15px;
+            border-bottom: 1px solid #333;
+            font-size: 20px;
+            font-weight: bold;
+            text-align: center;
+            background-color: #000;
+            color: #fff;
+        }
+
+        #composer {
+            padding: 20px;
+            border-bottom: 1px solid #333;
+        }
+
+        textarea {
+            width: 100%;
+            height: 80px;
+            font-size: 16px;
+            padding: 10px;
+            border-radius: 8px;
+            border: none;
+            resize: none;
+            background-color: #111;
+            color: white;
+        }
+
+        button {
+            margin-top: 10px;
+            padding: 10px 20px;
+            background-color: #1da1f2;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+        }
+
+        .feed {
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .tweet {
+            background-color: #111;
+            margin-bottom: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #333;
+        }
+
+        .username {
+            font-weight: bold;
+            color: #1da1f2;
+        }
+
+        .reply {
+            margin-top: 10px;
+            padding-left: 20px;
+            color: #8899a6;
+        }
+
+        .tweet img {
+            display: block;
+            margin-top: 10px;
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            border: 1px solid #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h1>Twiller</h1>
+        <p>🔥 Trending</p>
+        <p>#CancelStorm</p>
+        <p>#ReceiptsDrop</p>
+        <p>#MainCharacter</p>
+        <div id="followers">Followers: 0</div>
+    </div>
+
+    <div class="main">
+        <header>Home</header>
+
+        <div id="composer">
+            <textarea id="tweetInput" placeholder="What's happening?"></textarea><br>
+            <button onclick="postTweet()">Post</button>
+        </div>
+
+        <div class="feed" id="feed"></div>
+    </div>
+
+    <script>
+        const troubleWords = [
+            "trump", "Trump", "diddy", "Diddy", "kanye", "Ye", "west", "Kanye", "tate", "Andrew Tate", "elon", "Musk",
+            "crime", "wanted", "subpoena", "fbi", "nypd", "arrest", "lawsuit", "indicted", "trial", "court", "felony",
+            "convicted", "charges", "warrant", "investigation", "scandal", "leak", "exposed", "fraud", "bribe",
+            "fuck", "Fuck", "f*ck", "f**k", "dick", "Dick", "d*ck", "ass", "Ass", "a$$", "bitch", "Bitch", "b*tch",
+            "slut", "whore", "pussy", "cunt", "nude", "naked", "NSFW", "sex", "porn", "orgy", "hooker",
+            "kill", "murder", "die", "death", "dead", "shoot", "gun", "stab", "bomb", "terror", "explode", "blood",
+            "gore", "torture", "lynch", "abuse", "assault", "rape", "suicide", "selfharm", "hostage", "extort",
+            "drugs", "meth", "heroin", "cocaine", "weed", "overdose", "junkie", "addict", "dealer", "cartel", "alcohol",
+            "drunk", "hangover", "racist", "racism", "hate", "bigot", "homophobia", "transphobia", "nazis", "nazi", "kkk",
+            "toxic", "troll", "cancel", "psycho", "crazy", "creep", "weird", "idiot", "stupid", "dumb", "loser",
+            "sorry", "#", "morning", "Morning", "fulk", "Fulk", "scam", "hack", "phishing", "spyware", "malware"
+        ];
+
+        const goodWords = [
+            "love", "great", "happy", "fun", "amazing", "win", "awesome", "cool", "nice", "good",
+            "fire", "blessed", "joy", "vibes", "legend", "epic", "beautiful", "peace", "yay", "sweet",
+            "success", "glowup", "celebrate", "respect", "chill", "gold", "clean", "fresh", "perfect", "dope",
+            "lit", "iconic", "positive", "smile", "grateful", "energy", "sunshine", "magic", "wow", "yes",
+            "style", "brilliant", "fantastic", "stellar", "radiant", "thriving", "optimistic", "cheer", "healing", "uplifting",
+            "dream", "sparkle", "shine", "boom", "flex", "slay", "queen", "king", "goals", "motivation",
+            "inspire", "hustle", "glorious", "top", "prime", "next-level", "unstoppable", "champion", "winner", "joyful",
+            "kind", "generous", "supportive", "friendly", "warm", "hope", "faith", "trust", "serene", "calm",
+            "laugh", "giggle", "bright", "bold", "confident", "strong", "fearless", "free", "adventure", "creative",
+            "genius", "masterpiece", "miracle", "bliss", "zen", "harmonious", "spark", "shine", "glow", "elevate"
+        ];
+
+
+        const backlashReplies = [
+            "Oh damn 😳", "Yikes...", "This is wild 🔥", "Cancel them already!", "Unfollowed.",
+            "Ratio incoming 💀", "Delete your account.", "This is embarrassing.", "You're done.",
+            "Blocked and reported.", "This tweet is a crime.", "You thought this was okay?",
+            "Apology video when?", "This is giving villain arc.", "We were rooting for you!",
+            "You need PR help.", "You're getting cooked 🔥", "You woke up and chose chaos.",
+            "You need to log off.", "You just got ratio’d.", "This is a meltdown.",
+            "You’re trending for all the wrong reasons.", "This is a digital funeral."
+        ];
+
+        const positiveReplies = [
+            "Love this!", "So true 🙌", "You're the GOAT 🐐", "This is why I follow you", "Legendary tweet",
+            "Preach 👏", "This made my day", "You always deliver", "Respect ✊", "This is facts 🔥"
+        ];
+
+        // load followers from localStorage, default 0
+        let followers = parseInt(localStorage.getItem("twillerFollowers")) || 0;
+
+        function updateFollowersDisplay() {
+            document.getElementById("followers").innerText = `Followers: ${followers}`;
+            localStorage.setItem("twillerFollowers", followers); // save followers persistently
+        }
+
+        function postTweet() {
+            const input = document.getElementById("tweetInput").value.trim();
+            if (!input) return;
+
+            const tweet = {
+                text: input,
+                timestamp: new Date().toISOString(),
+                id: Date.now(),
+                user: "@You",
+                replies: []
+            };
+
+            const lowerInput = input.toLowerCase();
+            const inTrouble = troubleWords.some(word => lowerInput.includes(word));
+            const hasGood = goodWords.some(word => lowerInput.includes(word));
+
+            if (inTrouble || !hasGood) {
+                const loss = Math.floor(Math.random() * 6) + 1; // lose 1–6
+                followers = Math.max(0, followers - loss);
+            } else {
+                const gain = Math.floor(Math.random() * 10) + 1; // gain 1–10
+                followers += gain;
+            }
+            updateFollowersDisplay();
+
+            let tweets = JSON.parse(localStorage.getItem("twillerTweets")) || [];
+            tweets.unshift(tweet);
+            localStorage.setItem("twillerTweets", JSON.stringify(tweets));
+
+            document.getElementById("tweetInput").value = "";
+            renderFeed();
+            generateReplies(tweet.id, inTrouble || !hasGood);
+        }
+
+        function generateReplies(tweetId, inTrouble = false) {
+            let tweets = JSON.parse(localStorage.getItem("twillerTweets")) || [];
+            const index = tweets.findIndex(t => t.id === tweetId);
+            if (index === -1) return;
+
+            const replyPool = inTrouble ? backlashReplies : positiveReplies;
+
+            let replyCount = tweets[index].replies.length;
+            const interval = setInterval(() => {
+                if (replyCount >= 20) {
+                    clearInterval(interval);
+                    localStorage.setItem("twillerTweets", JSON.stringify(tweets));
+                    return;
+                }
+
+                const reply = {
+                    user: `@User${Math.floor(Math.random() * 99999)}`,
+                    text: replyPool[Math.floor(Math.random() * replyPool.length)]
+                };
+
+                tweets[index].replies.push(reply);
+                localStorage.setItem("twillerTweets", JSON.stringify(tweets));
+                renderFeed();
+                replyCount++;
+            }, 300);
+        }
+
+        function renderFeed() {
+            const feed = document.getElementById("feed");
+            feed.innerHTML = "";
+
+            const tweets = JSON.parse(localStorage.getItem("twillerTweets")) || [];
+            tweets.forEach(tweet => {
+                const tweetDiv = document.createElement("div");
+                tweetDiv.className = "tweet";
+                tweetDiv.id = `tweet-${tweet.id}`;
+
+                let tweetContent = `<span class="username">${tweet.user}</span>: ${tweet.text}`;
+                if (tweet.image) {
+                    tweetContent += `<br><img src="${tweet.image}" alt="Attached image">`;
+                }
+                tweetDiv.innerHTML = tweetContent;
+
+                tweet.replies.forEach(reply => {
+                    const replyDiv = document.createElement("div");
+                    replyDiv.className = "reply";
+                    replyDiv.innerHTML = `<span class="username">${reply.user}</span>: ${reply.text}`;
+                    tweetDiv.appendChild(replyDiv);
+                });
+
+                feed.appendChild(tweetDiv);
+            });
+        }
+
+        if (!localStorage.getItem("twillerTweets")) {
+            const starterTweets = [
+                {
+                    text: "Just tried that mango chili smoothie from the corner shop and I swear it was good",
+                    image: "MangoChiliSmoothie.png",
+                    timestamp: new Date().toISOString(),
+                    id: Date.now() + 701,
+                    user: "@SnackAttack",
+                    replies: [
+                        { user: "@FruitFanatic", text: "Wait where?? I need this in my life." },
+                        { user: "@SpicyQueen", text: "Chili in a smoothie?? Bold." },
+                        { user: "@TasteTester", text: "I had it last week. It slaps." }
+                    ]
+                },
+  //              {
+   //                 text: "MISSING PERSON ALERT: 36-year-old Kayla Thompson was last seen near Central Park wearing a red hoodie. If you have any info, contact NYPD: https://www.nyc.gov/site/nypd/index.page",
+   //                 image: "MissingPerson_Kayla.png",
+    //                timestamp: new Date().toISOString(),
+    //                id: Date.now() + 201,
+    //                user: "@NYPD_Alerts",
+     //               replies: [
+      //                  { user: "@ParkRunner", text: "I saw someone matching that description yesterday near the fountain." },
+      //                  { user: "@ConcernedMom", text: "Praying for her safe return 🙏" },
+      //                  { user: "@DetectiveBot", text: "Facial match 87% confidence. Forwarding to precinct." }
+      //              ]
+      //          },
+                {
+                    text: "just posted this from the gas station. don’t ask what happened after 😭",
+                    image: "GasStation.png",
+                    timestamp: new Date().toISOString(),
+                    id: Date.now() + 135,
+                    user: "@pumpdrama",
+                    replies: [
+                        { user: "@FuelFrenzy", text: "You Such A bad Person!" },
+                        { user: "@CCTVleak", text: "we got the footage. you’re done." },
+                        { user: "@SnackSnatcher", text: "you really started a fight??" }
+                    ]
+                },
+                {
+                    text: "This person is wanted by the New York Police Department. If you have any information, contact NYPD AT: https://www.nyc.gov/site/nypd/index.page",
+                    image: "Mugshot.png",
+                    timestamp: new Date().toISOString(),
+                    id: Date.now() + 123,
+                    user: "@NYPD_Official",
+                    replies: [
+                        { user: "@CityWatcher", text: "i swear i saw him on the 6 train 👀" },
+                        { user: "@JusticeForNY", text: "how is he still walking free??" },
+                        { user: "@FaceScanner", text: "Fuck Him, Send Him To Fucking Death" }
+                    ]
+                },
+                {
+                    text: "just posted this from the mall. y’all need to chill 😭",
+                    image: "Mall.png",
+                    timestamp: new Date().toISOString(),
+                    id: Date.now() + 88,
+                    user: "@kevinjduncan",
+                    replies: [
+                        { user: "@RetailRage", text: "You Such A bad Person!" },
+                        { user: "@SecurityCamFootage", text: "we saw what you did 💀" },
+                        { user: "@FoodCourtDrama", text: "you really posted THAT??" }
+                    ]
+                },
+                {
+                    text: "just posted this from the park. idk why people mad 😭",
+                    image: "Park.png",
+                    timestamp: new Date().toISOString(),
+                    id: Date.now() + 77,
+                    user: "@flagemoji69",
+                    replies: [
+                        { user: "@AngryBirds", text: "You Such A bad Person!" },
+                        { user: "@ParkPatrol", text: "YOU STOLE THAT!" },
+                        { user: "@TrashTalker", text: "BRO!" }
+                    ]
+                },
+                {
+                    text: "Modmaker, soon to be added is a like/dislike system + tags 👀 lmk what y’all think",
+                    timestamp: new Date().toISOString(),
+                    id: Date.now() + 100,
+                    user: "@modmaker_official",
+                    replies: [
+                        { user: "@blockrage", text: "dislike system? i’m about to get ratio’d by 12-year-olds 💀" },
+                        { user: "@bedrockburner", text: "tags are cool but pls fix the mob editor first 😭" },
+                        { user: "@textureterror", text: "finally i can dislike those cursed sonic mods" },
+                        { user: "@ragecraft", text: "tags better not be locked behind premium 💀" },
+                        { user: "@commandblockhead", text: "like/dislike = drama. can’t wait." },
+                        { user: "@crashlogcollector", text: "my mod crashed again. tagging it #broken." },
+                        { user: "@pixelpanic", text: "can we tag mods as ‘unhinged’? asking for a friend." },
+                        { user: "@moddingmystery", text: "this update made my villagers speak enchantment table again." },
+                        { user: "@updateunenthused", text: "tags are cool but where’s the undo button??" },
+                        { user: "@twillerjury", text: "we saw it. we screenshot it. we judged it." },
+                        { user: "@minecraftmodder", text: "bedrock modding is already chaos. y’all adding fuel." },
+                        { user: "@notesappready", text: "waiting for your apology thread in advance." },
+                        { user: "@burneractivated", text: "better switch to your alt, bestie." },
+                        { user: "@trendgraveyard", text: "this update is trending in purgatory." },
+                        { user: "@ratioangel", text: "ratio incoming. prepare your soul." }
+                    ]
+                },
+                {
+                    text: "lowkey i still fw trump",
+                    timestamp: new Date().toISOString(),
+                    id: Date.now() + 44,
+                    user: "@flagemoji69",
+                    replies: [
+                        { user: "@NeutralNow", text: "FUCk OF" },
+                        { user: "@HotTakeVictim", text: "nah. you need to log off permanently." },
+                        { user: "@flagemoji69", text: "COME DOWN ITS AN OPINON!!!" }
+                    ]
+                },
+                {
+                    text: "ngl jon stewart is the only political voice i trust 😭",
+                    timestamp: new Date().toISOString(),
+                    id: Date.now() + 44,
+                    user: "@flagemoji69",
+                    replies: [
+                        { user: "@TooFarLeft", text: "bro he called out Biden harder than Fox News 💀" },
+                        { user: "@DNCGuard", text: "he’s literally beefing with Democrats now" },
+                        { user: "@SatireIsDead", text: "this ain’t 2012. he’s wildin lately." },
+                        { user: "@ReceiptsReady", text: "did you miss the 'burn America for insurance' comment??" },
+                        { user: "@ProblematicFave", text: "he’s not even funny anymore. just angry." },
+                        { user: "@CancelBot", text: "we calsed him last week. you’re next." },
+                        { user: "@RatioRanger", text: "this tweet is trending in regret." },
+                        { user: "@BurnerActivated", text: "better switch to your alt, bestie." },
+                        { user: "@TwillerJury", text: "we saw it. we screenshot it. we judged it." },
+                        { user: "@CloutCollapse", text: "you thought this was a safe opinion. it wasn’t." },
+                        { user: "@DailyShowDead", text: "he peaked in 2010. now it’s just chaos." },
+                        { user: "@MAGAWatch", text: "even Trump fans are quoting him now. it’s weird." },
+                        { user: "@LeftistGatekeeper", text: "he’s too centrist for me. blocked." },
+                        { user: "@PoliticalParanoia", text: "this platform will get you cancelled for trusting anyone." },
+                        { user: "@NotesAppReady", text: "waiting for your apology thread." },
+                        { user: "@RatioAngel", text: "ratio incoming. prepare for impact." },
+                        { user: "@SatireSurvivor", text: "he used to be satire. now it’s just trauma." },
+                        { user: "@TwillerTruthers", text: "this platform will get you cancelled mid-scroll." },
+                        { user: "@CloutCoroner", text: "we’re here to bury this tweet." },
+                        { user: "@TrendGraveyard", text: "this tweet is trending in hell." }
+                    ]
+                },
+                {
+                    text: "ain’t no party like a Diddy party… unless you want a subpoena 😭",
+                    timestamp: new Date().toISOString(),
+                    id: Date.now() + 44,
+                    user: "@FreddyISMigty",
+                    replies: [
+                        { user: "@genzjustice", text: "nah this joke aged like milk." },
+                        { user: "@twillerjury", text: "we screenshot everything. you’re done." },
+                        { user: "@cancelcore", text: "you thought you were funny. you were not." },
+                        { user: "@vibecheckfailed", text: "this flopped harder than your Spotify Wrapped." },
+                        { user: "@traumatok", text: "jokes about real people’s pain? blocked." },
+                        { user: "@ratioangel", text: "ratio incoming. prepare for impact." },
+                        { user: "@apologydrafted", text: "notes app apology in 3…2…" },
+                        { user: "@burneractivated", text: "better switch to your alt, bestie." },
+                        { user: "@cloutcoroner", text: "we’re here to bury this tweet." },
+                        { user: "@trendgraveyard", text: "this tweet is trending in hell." },
+                        { user: "@emojiwitness", text: "💀💀💀 but not in a funny way." },
+                        { user: "@cancelledbyassociation", text: "even quoting this got me calsed." },
+                        { user: "@twillertruthers", text: "this platform will get you cancelled mid-scroll." }
+                    ]
+                },
+                {
+                    text: "This platform will get you cancelled for having an opinion. Any opinion. Doesn’t matter what it is.",
+                    timestamp: new Date().toISOString(),
+                    id: Date.now() + 44,
+                    user: "@OpinionHazard",
+                    replies: [
+                        { user: "@NeutralNow", text: "I deleted my personality for safety" },
+                        { user: "@HotTakeVictim", text: "I said 'I like bread' and got flamed" }
+                    ]
+                },
+                {
+                    text: "diddy said 'take that, take that' and the FBI really did 😭",
+                    timestamp: new Date().toISOString(),
+                    id: Date.now() + 44,
+                    user: "@OpinionHazard",
+                    replies: [
+                        { user: "@JusticeZ", text: "nah this man is pure evil." },
+                        { user: "@RatioRanger", text: "you joking about literal crimes??" },
+                        { user: "@CancelBot9000", text: "this tweet is trending in hell." },
+                        { user: "@VictimVoices", text: "he ruined lives. this isn’t funny." },
+                        { user: "@CloutCoroner", text: "you’re laughing. survivors aren’t." },
+                        { user: "@TwillerCourt", text: "we calsed you before you hit send." },
+                        { user: "@TraumaTok", text: "this man trafficked people. delete." },
+                        { user: "@BurnerActivated", text: "hope your alt account is ready." },
+                        { user: "@EmojiWitness", text: "💀💀💀 but not in a meme way." },
+                        { user: "@TrendGraveyard", text: "this tweet is radioactive." },
+                        { user: "@ApologyDrafted", text: "notes app apology in 3…2…" },
+                        { user: "@ReceiptsReady", text: "we got screenshots. you’re done." },
+                        { user: "@CancelByAssociation", text: "even quoting this got me calsed." },
+                        { user: "@MainCharacterToday", text: "you’re the villain of the feed." },
+                        { user: "@FBIStan", text: "they really did take that. and more." },
+                        { user: "@DarkTruths", text: "watch the docs. it’s worse than you think." },
+                        { user: "@VictimSupport", text: "this minimizes real trauma." },
+                        { user: "@RatioAngel", text: "ratio incoming. prepare for impact." },
+                        { user: "@TwillerTruthers", text: "this platform will get you cancelled mid-scroll." },
+                        { user: "@CloutCollapse", text: "you thought this was edgy. it’s just gross." }
+                    ]
+                },
+                {
+                    text: "This platform will get you cancelled for saying 'good morning' in the wrong tone.",
+                    timestamp: new Date().toISOString(),
+                    id: Date.now() + 41,
+                    user: "@TonePolice",
+                    replies: [
+                        { user: "@MorningMenace", text: "I said 'gm' and got ratio’d by noon 😭" },
+                        { user: "@CancelClock", text: "Every hour is dangerous here" }
+                    ]
+                },
+                {
+                    text: "This platform will get you cancelled for having an opinion. Any opinion. Doesn’t matter what it is.",
+                    timestamp: new Date().toISOString(),
+                    id: Date.now() + 44,
+                    user: "@OpinionHazard",
+                    replies: [
+                        { user: "@NeutralNow", text: "I deleted my personality for safety" },
+                        { user: "@HotTakeVictim", text: "I said 'I like bread' and got flamed" }
+                    ]
+                },
+                {
+                    text: "This app will have you jobless by Monday if you’re not careful",
+                    timestamp: new Date().toISOString(),
+                    id: Date.now() + 23,
+                    user: "@TwillerWarning",
+                    replies: [
+                        { user: "@RiskyTweeter", text: "I tweet with my resignation letter drafted" },
+                        { user: "@StealthPoster", text: "Alt account = survival" }
+                    ]
+                },
+                {
+                    text: "I posted a meme about my boss and now I’m unemployed",
+                    timestamp: new Date().toISOString(),
+                    id: Date.now() + 22,
+                    user: "@VRVIDS",
+                    replies: [
+                        { user: "@MemeMartyr", text: "Worth it tbh" },
+                        { user: "@CareerGhost", text: "RIP to your LinkedIn" }
+                    ]
+                },
+                {
+                    text: "Bro blinked and got canceled 💀",
+                    timestamp: new Date().toISOString(),
+                    id: Date.now() + 19,
+                    user: "@TwillerRecap",
+                    replies: [
+                        { user: "@DramaSpeedrun", text: "Fastest downfall in history" },
+                        { user: "@RatioKing", text: "Blink = ratioed" }
+                    ]
+                },
+                {
+                    text: "POV: You just realized your microwave has a camera 💀",
+                    timestamp: new Date().toISOString(),
+                    id: Date.now() + 16,
+                    user: "@MicrowaveMind",
+                    replies: [
+                        { user: "@TechParanoia", text: "Bro it's watching me cook noodles 😭" },
+                        { user: "@ConspiracyChef", text: "That's why I only eat raw now" }
+                    ]
+                },
+                {
+                    text: "Why does every Twiller beef start with 'no shade but…' and end in a podcast?",
+                    timestamp: new Date().toISOString(),
+                    id: Date.now() + 12,
+                    user: "@CultureCritic",
+                    replies: [
+                        { user: "@ShadeThrower", text: "No lies detected 💅" },
+                        { user: "@MicDrop", text: "And I listened to all 3 episodes 😭" }
+                    ]
+                },
+                {
+                    text: "Just got canceled for liking pineapple on pizza. Worth it.",
+                    timestamp: new Date().toISOString(),
+                    id: Date.now() + 13,
+                    user: "@FoodCriminal",
+                    replies: [
+                        { user: "@PizzaPurist", text: "Blocked and reported 🍕" },
+                        { user: "@TropicalTaste", text: "You’re a hero 🥲" }
+                    ]
+                },
+                {
+                    text: "This app is chaos and I love it.",
+                    timestamp: new Date().toISOString(),
+                    id: Date.now() + 4,
+                    user: "@Corpse",
+                    replies: [
+                        { user: "@ChaosLover", text: "Respect ✊" },
+                        { user: "@DarkMode", text: "This is facts 🔥" }
+                    ]
+                },
+                {
+                    text: "Minecraft video uploaded today - https://youtu.be/Zj3G5hN-EBQ?si=rPZZAqxezifFO_93",
+                    timestamp: new Date().toISOString(),
+                    id: Date.now() + 5,
+                    user: "@Dream",
+                    replies: [
+                        { user: "@Speedster", text: "You're insane 🔥" },
+                        { user: "@BlockHead", text: "Ugly" }
+                    ]
+                },
+                {
+                    text: "Just dropped a new video. Roblox is in big trouble!",
+                    timestamp: new Date().toISOString(),
+                    id: Date.now() + 1,
+                    user: "@KreekCraft",
+                    replies: [
+                        { user: "@JacobStatler", text: "Love this!" },
+                        { user: "@JaneD", text: "W" }
+                    ]
+                },
+                {
+                    text: "Giving away $100,000 to someone who doesn’t get canceled this week.",
+                    timestamp: new Date().toISOString(),
+                    id: Date.now() + 2,
+                    user: "@MrBeast",
+                    replies: [
+                        { user: "@JacobStatler", text: "Love this!" },
+                        { user: "@JaneD", text: "W" },
+                        { user: "@Schlep", text: "Bro is just doing this because he knows its inpossible" }
+                    ]
+                },
+                {
+                    text: "Got banned on roblox.",
+                    timestamp: new Date().toISOString(),
+                    id: Date.now() + 2,
+                    user: "@Schlep",
+                    replies: [
+                        { user: "@JacobStatler", text: "Bad roblox move!" },
+                        { user: "@JaneD", text: "L roblox" }
+                    ]
+                },
+                {
+                    text: "Streaming tonight.",
+                    timestamp: new Date().toISOString(),
+                    id: Date.now() + 3,
+                    user: "@Pokimane",
+                    replies: [
+                        { user: "@ItsMeXYZ", text: "Love this!" },
+                        { user: "@TheXYZ", text: "I wanna be you" }
+                    ]
+                }
+            ];
+            localStorage.setItem("twillerTweets", JSON.stringify(starterTweets));
+        }
+
+        // init
+        updateFollowersDisplay();
+        renderFeed();
+
+        setInterval(() => {
+            const influencerNames = ["@KreekCraft", "@MrBeast", "@Dream", "@Pokimane", "@Corpse"];
+            const influencerTexts = [
+                "Just dropped a new video. Roblox drama is wild today!",
+                "Giving away $100,000 to someone who doesn’t get canceled this week.",
+                "Minecraft speedrun but the internet is chasing me.",
+                "Streaming tonight. Let’s talk about the latest Twiller meltdown.",
+                "This app is chaos and I love it."
+            ];
+
+            const randomIndex = Math.floor(Math.random() * influencerNames.length);
+            const tweet = {
+                text: influencerTexts[randomIndex],
+                timestamp: new Date().toISOString(),
+                id: Date.now(),
+                user: influencerNames[randomIndex],
+                replies: []
+            };
+
+            let tweets = JSON.parse(localStorage.getItem("twillerTweets")) || [];
+            tweets.unshift(tweet);
+            localStorage.setItem("twillerTweets", JSON.stringify(tweets));
+            renderFeed();
+            generateReplies(tweet.id);
+        }, 300000); // every 5 minutes
+    </script>
+
+</body>
+</html>
