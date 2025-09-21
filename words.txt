@@ -17,6 +17,7 @@ BAD:for
 BAD:bruh
 BAD:sucid
 BAD:who
-BAD:Ã°ÂÂÂ¥
+BAD:ÃÂ°ÃÂÃÂÃÂ¥
 BAD:everyone
 BAD:everone
+BAD:people
