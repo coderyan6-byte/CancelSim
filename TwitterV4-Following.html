@@ -176,7 +176,8 @@
 
     <!-- ANNOUNCEMENT (hidden if opted out) -->
     <div id="announce" style="display:none;">
-        <p>We are now collecting data to make the game more fun. <small>(Only non-problematic, positive messages will be saved.)</small></p>
+        <!-- <p>We are now collecting data to make the game more fun. <small>(Only non-problematic, positive messages will be saved.)</small></p> -->
+        <p>We are now collecting data to make the game more fun.</p>
         <div style="display:flex; gap:8px; align-items:center;">
             <button id="optOutBtn">Opt out</button>
             <button id="learnMoreBtn">Learn more</button>
@@ -256,7 +257,8 @@
         });
 
         learnMoreBtn.addEventListener('click', () => {
-            alert("We collect only non-problematic, positive messages to improve reply realism. You may opt out and nothing will be saved after that.");
+            //alert("We collect only non-problematic, positive messages to improve reply realism. You may opt out and nothing will be saved after that.");
+            window.location.href = "https://sites.google.com/view/shutdownwebsitepolicey/data-policy";
         });
 
         /**************************************************
