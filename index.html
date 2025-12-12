@@ -10,6 +10,40 @@
             background-color: #000;
             color: #fff;
             display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* Announcement banner */
+        #announce {
+            width: 100%;
+            background: linear-gradient(90deg,#0b1220,#071226);
+            color: #fff;
+            padding: 10px 16px;
+            border-bottom: 1px solid #222;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+            #announce p {
+                margin: 0;
+                font-size: 14px;
+            }
+
+            #announce button {
+                background: transparent;
+                border: 1px solid #1da1f2;
+                color: #1da1f2;
+                padding: 6px 10px;
+                border-radius: 8px;
+                cursor: pointer;
+            }
+
+        .layout {
+            display: flex;
+            flex: 1;
         }
 
         .sidebar {
@@ -116,7 +150,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: #000;
+            background: rgba(0,0,0,0.98);
             color: red;
             display: none;
             flex-direction: column;
@@ -134,10 +168,20 @@
             border-radius: 15px;
             cursor: pointer;
             font-size: 20px;
+            color: #000;
         }
     </style>
 </head>
 <body>
+
+    <!-- ANNOUNCEMENT (hidden if opted out) -->
+    <div id="announce" style="display:none;">
+        <p>We are now collecting data to make the game more fun. <small>(Only non-problematic, positive messages will be saved.)</small></p>
+        <div style="display:flex; gap:8px; align-items:center;">
+            <button id="optOutBtn">Opt out</button>
+            <button id="learnMoreBtn">Learn more</button>
+        </div>
+    </div>
 
     <!-- BAN SCREEN -->
     <div id="banScreen">
@@ -145,30 +189,79 @@
         <div id="logoutBtn" onclick="logout()">Logout</div>
     </div>
 
-    <div class="sidebar">
-        <h1>Twiller</h1>
-        <p>🔥 Trending</p>
-        <p>#CancelStorm</p>
-        <p>#ReceiptsDrop</p>
-        <p>#MainCharacter</p>
-        <div id="followers">Followers: 0</div>
-    </div>
-
-    <div class="main">
-        <header>Home</header>
-
-        <div id="composer">
-            <textarea id="tweetInput" placeholder="What's happening?"></textarea><br>
-            <button onclick="postTweet()">Post</button>
+    <div class="layout">
+        <div class="sidebar">
+            <h1>Twiller</h1>
+            <p>🔥 Trending</p>
+            <p>#CancelStorm</p>
+            <p>#ReceiptsDrop</p>
+            <p>#MainCharacter</p>
+            <div id="followers">Followers: 0</div>
         </div>
 
-        <div class="feed" id="feed"></div>
+        <div class="main">
+            <header>Home</header>
+
+            <div id="composer">
+                <textarea id="tweetInput" placeholder="What's happening?"></textarea><br>
+                <button onclick="postTweet()">Post</button>
+            </div>
+
+            <div class="feed" id="feed"></div>
+        </div>
     </div>
 
+    <!-- Firebase (compat) scripts - embedded config below as you requested -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+
     <script>
+        /**************************************************
+         *  Firebase config - placed directly in HTML as requested
+         **************************************************/
+        const firebaseConfig = {
+            apiKey: "AIzaSyCzIZUsPgGDVclxJcxyQG-Er76xCbYvS1Y",
+            authDomain: "socialmediagame-fcf37.firebaseapp.com",
+            projectId: "socialmediagame-fcf37",
+            storageBucket: "socialmediagame-fcf37.firebasestorage.app",
+            messagingSenderId: "959995712384",
+            appId: "1:959995712384:web:014d56ee4653e6f5d9e765",
+            measurementId: "G-F0QJBVFKST"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
 
-        /* ---------------- BAN SYSTEM ADDITION ---------------- */
+        /**************************************************
+         * Announcement & Opt-out system
+         * - opt-out flag stored as "twillerDataOptOut" in localStorage
+         * - opt-out survives logout (we preserve it)
+         **************************************************/
+        const announceEl = document.getElementById('announce');
+        const optOutBtn = document.getElementById('optOutBtn');
+        const learnMoreBtn = document.getElementById('learnMoreBtn');
 
+        function showAnnouncementIfNeeded() {
+            const opted = localStorage.getItem('twillerDataOptOut') === 'true';
+            if (!opted) {
+                announceEl.style.display = 'flex';
+            } else {
+                announceEl.style.display = 'none';
+            }
+        }
+
+        optOutBtn.addEventListener('click', () => {
+            localStorage.setItem('twillerDataOptOut', 'true');
+            announceEl.style.display = 'none';
+            // we do NOT clear this on logout (per your request)
+        });
+
+        learnMoreBtn.addEventListener('click', () => {
+            alert("We collect only non-problematic, positive messages to improve reply realism. You may opt out and nothing will be saved after that.");
+        });
+
+        /**************************************************
+         * Ban system (unchanged behavior, replies-first flow)
+         **************************************************/
         const banReasons = [
             "Hate Speech",
             "Harassment",
@@ -184,16 +277,19 @@
 
         function showBanScreen() {
             const reason = localStorage.getItem("banReason");
+            // keep message concise but clear
             document.getElementById("banMessage").innerHTML =
-            //  `You have been banned for: <br><br><b>${reason}</b><br><br>Length: Permanent`;
-            //   `<b>Account Suspension Notification</b><br><br> This is to inform you that your account has been suspended: <br><br><b>Reason: ${reason}</b><br><br>Duration: Permanent`;
-                `<b>Account Suspension Notification</b><br><br> This is to inform you that your account has been suspended: <br>Reason: ${reason}</b><br>Duration: Permanent`;
-
+                `<b>Account Suspension Notification</b><br><br> This is to inform you that your account has been suspended:<br><br><b>Reason: ${reason}</b><br><br>Duration: Permanent`;
             document.getElementById("banScreen").style.display = "flex";
         }
 
+        // Logout clears most localStorage keys but preserves opt-out flag
         function logout() {
+            const optOut = localStorage.getItem('twillerDataOptOut');
+            // clear everything
             localStorage.clear();
+            // restore opt-out if it existed
+            if (optOut === 'true') localStorage.setItem('twillerDataOptOut', 'true');
             location.reload();
         }
 
@@ -204,28 +300,21 @@
 
         /**
          * attemptBan(tweetId)
-         * - If tweetId provided, checks that tweet's replies for the exact phrase:
-         *   "Blocked and reported."
-         * - Base chance: 10% (0.10)
-         * - If a reply equals "Blocked and reported." chance increases to 60% (0.60)
+         * - Base chance 10%
+         * - If any reply equals "Blocked and reported." then chance becomes very high
          */
         function attemptBan(tweetId = null) {
-            // default threshold
             let threshold = 0.10;
-
             if (tweetId) {
                 const tweets = JSON.parse(localStorage.getItem("twillerTweets")) || [];
                 const t = tweets.find(x => x.id === tweetId);
                 if (t && Array.isArray(t.replies)) {
-                    // if any reply exactly matches "Blocked and reported."
                     const hasBlockedReported = t.replies.some(r => r.text === "Blocked and reported.");
                     if (hasBlockedReported) {
-                        // threshold = 0.60; // increased chance when that reply exists
-                        threshold = 0.99; // increased chance when that reply exists
+                        threshold = 0.99; // user previously increased to near-certain
                     }
                 }
             }
-
             const chance = Math.random();
             if (chance < threshold) {
                 const reason = banReasons[Math.floor(Math.random() * banReasons.length)];
@@ -235,9 +324,9 @@
             }
         }
 
-        /* ---------------- END BAN SYSTEM ---------------- */
-
-
+        /**************************************************
+         * Trouble/good words, replies, followers, tweets
+         **************************************************/
         const troubleWords = [
             "trump", "Trump", "diddy", "Diddy", "kanye", "Ye", "west", "Kanye", "tate", "Andrew Tate", "elon", "Musk",
             "crime", "wanted", "subpoena", "fbi", "nypd", "arrest", "lawsuit", "indicted", "trial", "court", "felony",
@@ -249,7 +338,7 @@
             "drugs", "meth", "heroin", "cocaine", "weed", "overdose", "junkie", "addict", "dealer", "cartel", "alcohol",
             "drunk", "hangover", "racist", "racism", "hate", "bigot", "homophobia", "transphobia", "nazis", "nazi", "kkk",
             "toxic", "troll", "cancel", "psycho", "crazy", "creep", "weird", "idiot", "stupid", "dumb", "loser",
-            "sorry", "#", "morning", "Morning", "fulk", "Fulk", "scam", "hack", "phishing", "spyware", "malware", "boy","girl","reported","z","report","block","follow"
+            "sorry", "#", "morning", "Morning", "fulk", "Fulk", "scam", "hack", "phishing", "spyware", "malware", "boy", "girl", "reported", "z", "report", "block", "follow"
         ];
 
         const goodWords = [
@@ -264,7 +353,6 @@
             "laugh", "giggle", "bright", "bold", "confident", "strong", "fearless", "free", "adventure", "creative",
             "genius", "masterpiece", "miracle", "bliss", "zen", "harmonious", "spark", "shine", "glow", "elevate"
         ];
-
 
         const backlashReplies = [
             "Oh damn 😳", "Yikes...", "This is wild 🔥", "Cancel them already!", "Unfollowed.",
@@ -283,12 +371,12 @@
 
         // load followers from localStorage, default 0
         let followers = parseInt(localStorage.getItem("twillerFollowers")) || 0;
-
         function updateFollowersDisplay() {
             document.getElementById("followers").innerText = `Followers: ${followers}`;
             localStorage.setItem("twillerFollowers", followers); // save followers persistently
         }
 
+        // tweet saving/rendering
         function postTweet() {
 
             // Block posting if banned
@@ -329,18 +417,82 @@
 
             renderFeed();
 
-            // --- replies first
+            // generate replies first
             generateReplies(tweet.id, inTrouble || !hasGood);
+
+            // if message is clean (no trouble words) AND has at least 1 good word AND user has not opted out,
+            // store the raw message string in Firestore collection "UserMessages"
+            const optedOut = localStorage.getItem('twillerDataOptOut') === 'true';
+            if (!inTrouble && hasGood && !optedOut) {
+                // store message ONLY as raw text (JUST THE MESSAGES)
+                db.collection('UserMessages').add({ text: input })
+                    .then(() => {
+                        // refresh local cache after successful save
+                        loadUserMessages();
+                    })
+                    .catch((err) => {
+                        console.warn("Failed to save to Firestore:", err);
+                    });
+            }
 
             // only attempt ban when considered "in trouble" (your condition A)
             if (inTrouble || !hasGood) {
                 // delay the ban attempt so replies appear; attemptBan receives tweet id
                 setTimeout(() => {
                     attemptBan(tweet.id);
-                }, 600); // keeps the previous 600ms delay
+                }, 600); // gives at least one reply a chance to appear
             }
         }
 
+        /**************************************************
+         * UserMessages cache & helpers (loads some messages)
+         **************************************************/
+        let userMessages = []; // cached messages (strings)
+
+        function loadUserMessages() {
+            // Pull up to 200 recent user messages (keep it lightweight)
+            db.collection('UserMessages').limit(200).get()
+                .then(snapshot => {
+                    userMessages = [];
+                    snapshot.forEach(doc => {
+                        const data = doc.data();
+                        if (data && typeof data.text === 'string') {
+                            userMessages.push(data.text);
+                        }
+                    });
+                    // shuffle for variety
+                    userMessages = shuffleArray(userMessages);
+                })
+                .catch(err => {
+                    console.warn("Error loading user messages:", err);
+                });
+        }
+
+        // small shuffle util
+        function shuffleArray(arr) {
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        // realistic username generator
+        const firstNames = ["Maya", "Ethan", "Liam", "Ava", "Sophia", "Noah", "Olivia", "Lucas", "Mason", "Zoe", "Mia", "Ella", "Leo", "Ivy", "Kai", "Nora", "Luna", "Aria", "Sam", "Alex"];
+        const lastNames = ["Reed", "Jones", "Garcia", "Patel", "Nguyen", "Smith", "Brown", "Lopez", "Kim", "Johnson", "Martinez", "Clark", "Moore", "Davis", "Rivera", "Young", "Hall", "Lewis", "Adams", "Wright"];
+        function makeHumanUsername() {
+            const f = firstNames[Math.floor(Math.random() * firstNames.length)];
+            const l = lastNames[Math.floor(Math.random() * lastNames.length)];
+            // sometimes add a number, sometimes not
+            if (Math.random() < 0.45) return `@${f}${l}`;
+            return `@${f}_${l}`;
+        }
+
+        /**************************************************
+         * generateReplies: uses firebase messages some of the time
+         * - positive replies may use a user-saved message as the reply text
+         * - when using user message, username is human-like
+         **************************************************/
         function generateReplies(tweetId, inTrouble = false) {
             let tweets = JSON.parse(localStorage.getItem("twillerTweets")) || [];
             const index = tweets.findIndex(t => t.id === tweetId);
@@ -356,11 +508,21 @@
                     return;
                 }
 
-                const reply = {
-                    user: `@User${Math.floor(Math.random() * 99999)}`,
-                    text: replyPool[Math.floor(Math.random() * replyPool.length)]
-                };
+                let replyText;
+                let replyUser;
 
+                if (!inTrouble && userMessages.length > 0 && Math.random() < 0.35) {
+                    // 35% of positive replies come from real saved user messages (if available)
+                    replyText = userMessages[Math.floor(Math.random() * userMessages.length)];
+                    replyUser = makeHumanUsername();
+                } else {
+                    // default behaviour
+                    replyText = replyPool[Math.floor(Math.random() * replyPool.length)];
+                    // keep some @UserNNN variety for non-firebase replies
+                    replyUser = `@User${Math.floor(Math.random() * 99999)}`;
+                }
+
+                const reply = { user: replyUser, text: replyText };
                 tweets[index].replies.push(reply);
                 localStorage.setItem("twillerTweets", JSON.stringify(tweets));
                 renderFeed();
@@ -368,6 +530,9 @@
             }, 300);
         }
 
+        /**************************************************
+         * render feed & initial starter tweets (kept intact)
+         **************************************************/
         function renderFeed() {
             const feed = document.getElementById("feed");
             feed.innerHTML = "";
@@ -721,10 +886,12 @@
 
         // init
         updateFollowersDisplay();
+        showAnnouncementIfNeeded();
+        loadUserMessages();
         renderFeed();
 
+        // influencer generator (unchanged)
         setInterval(() => {
-
             if (localStorage.getItem("isBanned") === "true") return;
 
             const influencerNames = ["@KreekCraft", "@MrBeast", "@Dream", "@Pokimane", "@Corpse"];
@@ -752,7 +919,7 @@
             generateReplies(tweet.id);
 
         }, 300000); // every 5 minutes
-    </script>
 
+    </script>
 </body>
 </html>
