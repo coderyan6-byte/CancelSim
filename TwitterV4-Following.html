@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -108,9 +108,43 @@
             border-radius: 8px;
             border: 1px solid #333;
         }
+
+        /* BAN SCREEN */
+        #banScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            color: red;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 26px;
+            text-align: center;
+            z-index: 99999;
+        }
+
+        #logoutBtn {
+            margin-top: 25px;
+            padding: 10px 25px;
+            background: #1da1f2;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 20px;
+        }
     </style>
 </head>
 <body>
+
+    <!-- BAN SCREEN -->
+    <div id="banScreen">
+        <div id="banMessage"></div>
+        <div id="logoutBtn" onclick="logout()">Logout</div>
+    </div>
+
     <div class="sidebar">
         <h1>Twiller</h1>
         <p>🔥 Trending</p>
@@ -132,6 +166,78 @@
     </div>
 
     <script>
+
+        /* ---------------- BAN SYSTEM ADDITION ---------------- */
+
+        const banReasons = [
+            "Hate Speech",
+            "Harassment",
+            "Targeted Abuse",
+            "Evading Cancellation",
+            "Suspicious Activity",
+            "Toxic Behavior",
+            "Community Violations",
+            "Inciting Drama",
+            "Severe Misconduct",
+            "Posting Problematic Content"
+        ];
+
+        function showBanScreen() {
+            const reason = localStorage.getItem("banReason");
+            document.getElementById("banMessage").innerHTML =
+            //  `You have been banned for: <br><br><b>${reason}</b><br><br>Length: Permanent`;
+            //   `<b>Account Suspension Notification</b><br><br> This is to inform you that your account has been suspended: <br><br><b>Reason: ${reason}</b><br><br>Duration: Permanent`;
+                `<b>Account Suspension Notification</b><br><br> This is to inform you that your account has been suspended: <br>Reason: ${reason}</b><br>Duration: Permanent`;
+
+            document.getElementById("banScreen").style.display = "flex";
+        }
+
+        function logout() {
+            localStorage.clear();
+            location.reload();
+        }
+
+        // If banned already, show ban screen immediately
+        if (localStorage.getItem("isBanned") === "true") {
+            setTimeout(showBanScreen, 50);
+        }
+
+        /**
+         * attemptBan(tweetId)
+         * - If tweetId provided, checks that tweet's replies for the exact phrase:
+         *   "Blocked and reported."
+         * - Base chance: 10% (0.10)
+         * - If a reply equals "Blocked and reported." chance increases to 60% (0.60)
+         */
+        function attemptBan(tweetId = null) {
+            // default threshold
+            let threshold = 0.10;
+
+            if (tweetId) {
+                const tweets = JSON.parse(localStorage.getItem("twillerTweets")) || [];
+                const t = tweets.find(x => x.id === tweetId);
+                if (t && Array.isArray(t.replies)) {
+                    // if any reply exactly matches "Blocked and reported."
+                    const hasBlockedReported = t.replies.some(r => r.text === "Blocked and reported.");
+                    if (hasBlockedReported) {
+                        // threshold = 0.60; // increased chance when that reply exists
+                        threshold = 0.99; // increased chance when that reply exists
+                    }
+                }
+            }
+
+            const chance = Math.random();
+            if (chance < threshold) {
+                const reason = banReasons[Math.floor(Math.random() * banReasons.length)];
+                localStorage.setItem("isBanned", "true");
+                localStorage.setItem("banReason", reason);
+                showBanScreen();
+            }
+        }
+
+        /* ---------------- END BAN SYSTEM ---------------- */
+
+
         const troubleWords = [
             "trump", "Trump", "diddy", "Diddy", "kanye", "Ye", "west", "Kanye", "tate", "Andrew Tate", "elon", "Musk",
             "crime", "wanted", "subpoena", "fbi", "nypd", "arrest", "lawsuit", "indicted", "trial", "court", "felony",
@@ -143,7 +249,7 @@
             "drugs", "meth", "heroin", "cocaine", "weed", "overdose", "junkie", "addict", "dealer", "cartel", "alcohol",
             "drunk", "hangover", "racist", "racism", "hate", "bigot", "homophobia", "transphobia", "nazis", "nazi", "kkk",
             "toxic", "troll", "cancel", "psycho", "crazy", "creep", "weird", "idiot", "stupid", "dumb", "loser",
-            "sorry", "#", "morning", "Morning", "fulk", "Fulk", "scam", "hack", "phishing", "spyware", "malware"
+            "sorry", "#", "morning", "Morning", "fulk", "Fulk", "scam", "hack", "phishing", "spyware", "malware", "boy","girl","reported","z","report","block","follow"
         ];
 
         const goodWords = [
@@ -167,12 +273,12 @@
             "Apology video when?", "This is giving villain arc.", "We were rooting for you!",
             "You need PR help.", "You're getting cooked 🔥", "You woke up and chose chaos.",
             "You need to log off.", "You just got ratio’d.", "This is a meltdown.",
-            "You’re trending for all the wrong reasons.", "This is a digital funeral.", "Yeah be a good bitch", "So your trump?"
+            "You’re trending for all the wrong reasons.", "This is a digital funeral."
         ];
 
         const positiveReplies = [
             "Love this!", "So true 🙌", "You're the GOAT 🐐", "This is why I follow you", "Legendary tweet",
-            "Preach 👏", "This made my day", "You always deliver", "Respect ✊", "This is facts 🔥", "I am following you now", "I AM OG", "FUCK YOU"
+            "Preach 👏", "This made my day", "You always deliver", "Respect ✊", "This is facts 🔥"
         ];
 
         // load followers from localStorage, default 0
@@ -184,6 +290,13 @@
         }
 
         function postTweet() {
+
+            // Block posting if banned
+            if (localStorage.getItem("isBanned") === "true") {
+                showBanScreen();
+                return;
+            }
+
             const input = document.getElementById("tweetInput").value.trim();
             if (!input) return;
 
@@ -213,8 +326,19 @@
             localStorage.setItem("twillerTweets", JSON.stringify(tweets));
 
             document.getElementById("tweetInput").value = "";
+
             renderFeed();
+
+            // --- replies first
             generateReplies(tweet.id, inTrouble || !hasGood);
+
+            // only attempt ban when considered "in trouble" (your condition A)
+            if (inTrouble || !hasGood) {
+                // delay the ban attempt so replies appear; attemptBan receives tweet id
+                setTimeout(() => {
+                    attemptBan(tweet.id);
+                }, 600); // keeps the previous 600ms delay
+            }
         }
 
         function generateReplies(tweetId, inTrouble = false) {
@@ -247,6 +371,9 @@
         function renderFeed() {
             const feed = document.getElementById("feed");
             feed.innerHTML = "";
+
+            // if banned, don't render feed (ban screen will display)
+            if (localStorage.getItem("isBanned") === "true") return;
 
             const tweets = JSON.parse(localStorage.getItem("twillerTweets")) || [];
             tweets.forEach(tweet => {
@@ -285,18 +412,6 @@
                         { user: "@TasteTester", text: "I had it last week. It slaps." }
                     ]
                 },
-  //              {
-   //                 text: "MISSING PERSON ALERT: 36-year-old Kayla Thompson was last seen near Central Park wearing a red hoodie. If you have any info, contact NYPD: https://www.nyc.gov/site/nypd/index.page",
-   //                 image: "MissingPerson_Kayla.png",
-    //                timestamp: new Date().toISOString(),
-    //                id: Date.now() + 201,
-    //                user: "@NYPD_Alerts",
-     //               replies: [
-      //                  { user: "@ParkRunner", text: "I saw someone matching that description yesterday near the fountain." },
-      //                  { user: "@ConcernedMom", text: "Praying for her safe return 🙏" },
-      //                  { user: "@DetectiveBot", text: "Facial match 87% confidence. Forwarding to precinct." }
-      //              ]
-      //          },
                 {
                     text: "just posted this from the gas station. don’t ask what happened after 😭",
                     image: "GasStation.png",
@@ -394,17 +509,10 @@
                         { user: "@RatioRanger", text: "this tweet is trending in regret." },
                         { user: "@BurnerActivated", text: "better switch to your alt, bestie." },
                         { user: "@TwillerJury", text: "we saw it. we screenshot it. we judged it." },
-                        { user: "@CloutCollapse", text: "you thought this was a safe opinion. it wasn’t." },
+                        { user: "@CloutCollapse", text: "you thought you were safe. it wasn’t." },
                         { user: "@DailyShowDead", text: "he peaked in 2010. now it’s just chaos." },
-                        { user: "@MAGAWatch", text: "even Trump fans are quoting him now. it’s weird." },
-                        { user: "@LeftistGatekeeper", text: "he’s too centrist for me. blocked." },
-                        { user: "@PoliticalParanoia", text: "this platform will get you cancelled for trusting anyone." },
-                        { user: "@NotesAppReady", text: "waiting for your apology thread." },
-                        { user: "@RatioAngel", text: "ratio incoming. prepare for impact." },
-                        { user: "@SatireSurvivor", text: "he used to be satire. now it’s just trauma." },
-                        { user: "@TwillerTruthers", text: "this platform will get you cancelled mid-scroll." },
-                        { user: "@CloutCoroner", text: "we’re here to bury this tweet." },
-                        { user: "@TrendGraveyard", text: "this tweet is trending in hell." }
+                        { user: "@ReceiptsReady", text: "did you miss the 'burn America for insurance' comment??" },
+                        { user: "@ProblematicFave", text: "he’s not even funny anymore. just angry." }
                     ]
                 },
                 {
@@ -616,6 +724,9 @@
         renderFeed();
 
         setInterval(() => {
+
+            if (localStorage.getItem("isBanned") === "true") return;
+
             const influencerNames = ["@KreekCraft", "@MrBeast", "@Dream", "@Pokimane", "@Corpse"];
             const influencerTexts = [
                 "Just dropped a new video. Roblox drama is wild today!",
@@ -639,9 +750,9 @@
             localStorage.setItem("twillerTweets", JSON.stringify(tweets));
             renderFeed();
             generateReplies(tweet.id);
+
         }, 300000); // every 5 minutes
     </script>
 
 </body>
 </html>
-
