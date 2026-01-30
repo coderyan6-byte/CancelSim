@@ -1,0 +1,963 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Stock Market Simulator — File Bankruptcy Only (Owner Protected)</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f7f9fb;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .money {
+            font-size: 28px;
+            font-weight: bold;
+            color: #111;
+            transition: background .5s ease;
+            padding: 4px 8px;
+            border-radius: 6px;
+        }
+
+        .container {
+            display: flex;
+            gap: 20px;
+        }
+
+        .card {
+            background: #fff;
+            padding: 16px;
+            border-radius: 12px;
+            box-shadow: 0 2px 6px rgba(0,0,0,.1);
+            flex: 1;
+        }
+
+        .stock {
+            position: relative;
+            padding: 12px;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            border: 1px solid #ddd;
+            display: block;
+            background: transparent;
+        }
+
+        .stock-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        button {
+            margin: 4px;
+            padding: 6px 10px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .buy {
+            background: #22c55e;
+            color: white;
+        }
+
+        .sell {
+            background: #ef4444;
+            color: white;
+        }
+
+        .jump {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .portfolio-btns {
+            margin-top: 8px;
+        }
+
+        .dead-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            color: #fff;
+            font-size: 22px;
+            font-weight: bold;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 10px;
+            text-align: center;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .flash-red {
+            animation: flashRed 1s ease;
+        }
+
+        .flash-green {
+            animation: flashGreen 1s ease;
+        }
+
+        @keyframes flashRed {
+            from {
+                background: #fee2e2;
+            }
+
+            to {
+                background: transparent;
+            }
+        }
+
+        @keyframes flashGreen {
+            from {
+                background: #dcfce7;
+            }
+
+            to {
+                background: transparent;
+            }
+        }
+
+        #orderBox, #sellBox {
+            position: fixed;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            border: 2px solid #444;
+            padding: 16px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,.3);
+            display: none;
+            text-align: center;
+            width: 360px;
+        }
+
+        #orderBox {
+            top: 45%;
+            transform: translate(-50%,-50%);
+            width: 360px;
+        }
+
+        #sellBox {
+            top: 52%;
+        }
+
+        #notif {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #444;
+            color: #fff;
+            padding: 10px 16px;
+            border-radius: 8px;
+            display: none;
+            font-size: 16px;
+            z-index: 999;
+        }
+
+        .orders-list {
+            margin-top: 8px;
+            font-size: 13px;
+            min-height: 36px;
+            max-height: 120px;
+            overflow: auto;
+        }
+
+        .order-item {
+            border: 1px dashed #ccc;
+            padding: 6px;
+            margin: 6px 0;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255,255,255,0.02);
+        }
+
+        .order-meta {
+            font-size: 12px;
+            color: #333;
+        }
+
+        .small-btn {
+            padding: 4px 6px;
+            font-size: 12px;
+            margin-left: 6px;
+        }
+
+        #market-card {
+            max-height: 80vh;
+            overflow-y: auto;
+            flex: 2;
+        }
+        /* Ensure buttons inside the stock render above the overlay and accept clicks */
+        .stock button, .stock .jump, .stock .buy, .stock .sell {
+            position: relative;
+            z-index: 2;
+            pointer-events: auto;
+        }
+
+        .stock canvas {
+            background: rgba(255,255,255,0.02);
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📈 Stock Market Simulator</h1>
+        <p class="money" id="balanceBox"><strong>Balance:</strong> $<span id="balance">5000.00</span></p>
+    </div>
+
+    <div class="container">
+        <div class="card" style="max-width:320px;">
+            <h2>Your Portfolio</h2>
+            <ul id="portfolio"><li>No stocks owned yet.</li></ul>
+            <div class="portfolio-btns" id="portfolioBtns"></div>
+        </div>
+
+        <div id="market-card" class="card">
+            <h2>Stock Market</h2>
+            <div id="market"></div>
+        </div>
+    </div>
+
+    <!-- Reused popup for NPC buy-of-player offers AND investor offers (owner) -->
+    <div id="orderBox">
+        <p id="orderText">NPC wants to buy...</p>
+        <div style="margin-top:10px;">
+            <button class="sell" id="acceptBtn">Accept</button>
+            <button class="jump" id="rejectBtn">Deny</button>
+        </div>
+    </div>
+
+    <!-- Sell box -->
+    <div id="sellBox">
+        <h3 id="sellBoxTitle">Sell Shares</h3>
+        <p id="sellStockInfo"></p>
+        <div><label>Price: $ <input type="number" id="sellPriceInput" min="0" step="0.01" style="width:120px;"></label></div>
+        <div style="margin-top:8px;"><label><input type="checkbox" id="sellAutoAdjust"> Auto-adjust</label></div>
+        <div style="margin-top:12px;">
+            <button class="sell" id="placeSellBtn">Place Order</button>
+            <button class="jump" id="cancelSellBtn">Cancel</button>
+        </div>
+        <div style="margin-top:8px; font-size:13px; color:#555;">(Placed orders are removed from your portfolio until sold.)</div>
+    </div>
+
+    <div id="notif"></div>
+
+    <script>
+        /* ---------------------------
+           State and defaults
+           --------------------------- */
+        let balance = parseFloat(localStorage.getItem("balance")) || 5000;
+        let portfolio = JSON.parse(localStorage.getItem("portfolio")) || {};
+        let savedStocks = JSON.parse(localStorage.getItem("stocks")) || null;
+        let charts = {};
+        let pendingOrder = null;
+        let pendingInvestor = null;
+        let autoSellTimeout = null;
+
+        let defaultStocks = [
+            { symbol: "BLIAQ", name: "Blockbuster", price: 0.18, history: [10.65], dead: false },
+            { symbol: "APX", name: "Apex Corp", price: 120, history: [120], dead: false },
+            { symbol: "NXT", name: "NextGen Ltd", price: 85, history: [85], dead: false },
+            { symbol: "GLD", name: "Global Dynamics", price: 210, history: [210], dead: false },
+            { symbol: "QIK", name: "QuickTech", price: 45, history: [45], dead: false },
+        ];
+
+        // add bookkeeping: sellOrders[], bankruptAt, debtDraining, owner, vulnerable, recentlyRevived
+        let stocks = savedStocks || defaultStocks.map(s => ({ ...s, sellOrders: [], bankruptAt: null, debtDraining: false, owner: null, vulnerable: false, recentlyRevived: null }));
+
+        function saveData() {
+            const clean = stocks.map(s => ({
+                symbol: s.symbol, name: s.name, price: s.price, history: s.history, dead: s.dead,
+                born: s.born, luck: s.luck,
+                sellOrders: (s.sellOrders || []).map(o => ({ id: o.id, owner: o.owner, qty: o.qty, price: o.price, autoAdjust: !!o.autoAdjust, placedAt: o.placedAt })),
+                bankruptAt: s.bankruptAt || null, debtDraining: !!s.debtDraining, owner: s.owner || null, vulnerable: !!s.vulnerable, recentlyRevived: s.recentlyRevived || null
+            }));
+            localStorage.setItem("balance", balance);
+            localStorage.setItem("portfolio", JSON.stringify(portfolio));
+            localStorage.setItem("stocks", JSON.stringify(clean));
+        }
+
+        function notify(msg, color = "#444") {
+            const box = document.getElementById("notif");
+            box.textContent = msg;
+            box.style.background = color;
+            box.style.display = "block";
+            clearTimeout(box._hideTimer);
+            box._hideTimer = setTimeout(() => box.style.display = "none", 2600);
+        }
+        function uid(prefix = 'o') { return prefix + Math.random().toString(36).slice(2, 9); }
+        function generateCompany() {
+            const words = ["Nova", "Titan", "Prime", "Eagle", "Quantum", "Orbit", "Vertex", "Summit", "Echo"];
+            const suffix = ["Corp", "Ltd", "Group", "Inc", "Holdings", "Systems"];
+            const name = words[Math.floor(Math.random() * words.length)] + " " + suffix[Math.floor(Math.random() * suffix.length)];
+            const symbol = name.split(" ")[0].substring(0, 3).toUpperCase() + Math.floor(Math.random() * 90 + 10);
+            const luck = Math.random() < 0.2 ? "lucky" : "normal";
+            return { symbol, name, price: 500, history: [500], dead: false, born: Date.now(), luck, sellOrders: [], bankruptAt: null, debtDraining: false, owner: null, vulnerable: false, recentlyRevived: null };
+        }
+
+        /* ---------------------------
+           Portfolio rendering
+           --------------------------- */
+        function renderPortfolio() {
+            const port = document.getElementById("portfolio");
+            const btns = document.getElementById("portfolioBtns");
+            port.innerHTML = ""; btns.innerHTML = "";
+            if (Object.keys(portfolio).length === 0) {
+                port.innerHTML = "<li>No stocks owned yet.</li>";
+            } else {
+                for (let sym in portfolio) {
+                    const stock = stocks.find(s => s.symbol === sym);
+                    if (!stock || stock.dead) continue;
+                    const qty = portfolio[sym].qty;
+                    const avgPrice = portfolio[sym].avgPrice;
+                    const invested = avgPrice * qty;
+                    const currentValue = stock.price * qty;
+                    const profit = currentValue - invested;
+                    const li = document.createElement("li");
+                    li.id = `port-${sym}`;
+                    li.innerHTML = `<strong>${sym}</strong>: ${qty} shares<br>
+                                    Avg Buy: $${avgPrice.toFixed(2)} | Now: $${stock.price.toFixed(2)}<br>
+                                    Value: $${currentValue.toFixed(2)} (${profit >= 0 ? "+" : ""}${profit.toFixed(2)})`;
+                    li.style.color = profit > 0 ? "green" : profit < 0 ? "red" : "black";
+                    port.appendChild(li);
+
+                    const btn = document.createElement("button");
+                    btn.textContent = `Go to ${sym}`;
+                    btn.className = "jump";
+                    btn.onclick = () => document.getElementById(`stock-${sym}`).scrollIntoView({ behavior: "smooth" });
+                    btns.appendChild(btn);
+                }
+            }
+            document.getElementById("balance").textContent = balance.toFixed(2);
+            saveData();
+        }
+
+        function flashEffect(symbol, color, target = "portfolio") {
+            let el = (target === "portfolio") ? document.getElementById(`port-${symbol}`) : document.getElementById("balanceBox");
+            if (!el) return;
+            el.classList.remove("flash-red", "flash-green");
+            void el.offsetWidth;
+            el.classList.add(color === "green" ? "flash-green" : "flash-red");
+        }
+
+        /* ---------------------------
+           Buy / Sell (unchanged logic except owner effects)
+           --------------------------- */
+        function buyStock(symbol) {
+            const stock = stocks.find(s => s.symbol === symbol);
+            if (stock.dead) return notify("This company is bankrupt. You cannot buy.", "#b91c1c");
+            const qty = parseInt(document.getElementById(`qty-${symbol}`).value);
+            const cost = stock.price * qty;
+            let age = (Date.now() - (stock.born || 0)) / 1000;
+            let rejectChance = 0.2;
+            if (age < 20) rejectChance = 0.8;
+            else if (stock.price < 50) rejectChance = 0.4;
+            else if (stock.price > 150) rejectChance = 0.1;
+            if (Math.random() < rejectChance) return notify(`❌ NPC rejected your buy of ${symbol}`, "#b91c1c");
+            if (balance >= cost) {
+                balance -= cost;
+                if (!portfolio[symbol]) portfolio[symbol] = { qty: qty, avgPrice: stock.price };
+                else {
+                    let oldTotal = portfolio[symbol].avgPrice * portfolio[symbol].qty;
+                    let newTotal = cost;
+                    let newQty = portfolio[symbol].qty + qty;
+                    portfolio[symbol].avgPrice = (oldTotal + newTotal) / newQty;
+                    portfolio[symbol].qty = newQty;
+                }
+
+                renderPortfolio();
+                flashEffect(symbol, "red", "portfolio");
+                flashEffect(symbol, "red", "balance");
+            }
+        }
+
+        function sellStock(symbol) {
+            const stock = stocks.find(s => s.symbol === symbol);
+            if (stock.dead) return notify("This company is bankrupt. You cannot sell.", "#b91c1c");
+            const qty = parseInt(document.getElementById(`qty-${symbol}`).value);
+            if (!portfolio[symbol] || portfolio[symbol].qty < qty) return;
+            currentSellContext = { symbol, qty, orderId: null };
+            document.getElementById("sellBoxTitle").textContent = `Sell ${qty} shares of ${symbol}`;
+            document.getElementById("sellStockInfo").textContent = `${symbol} — Current market price: $${stock.price.toFixed(2)}`;
+            document.getElementById("sellPriceInput").value = stock.price.toFixed(2);
+            document.getElementById("sellAutoAdjust").checked = true;
+            document.getElementById("sellBox").style.display = "block";
+        }
+
+        /* NPC offers (player sell) */
+        function makeNpcOffer(symbol, qty) {
+            const stock = stocks.find(s => s.symbol === symbol);
+            if (!stock || stock.dead) return;
+            pendingOrder = { symbol, qty };
+            let offerPrice = stock.price;
+            if (stock.price > 150) offerPrice *= 0.9;
+            if (stock.price < 50) offerPrice *= 1.1;
+            document.getElementById("orderText").textContent = `NPC offers $${offerPrice.toFixed(2)} for ${qty} shares of ${symbol}`;
+            document.getElementById("acceptBtn").onclick = () => acceptSell(offerPrice);
+            document.getElementById("rejectBtn").onclick = () => { clearTimeout(autoSellTimeout); pendingOrder = null; document.getElementById("orderBox").style.display = "none"; };
+            document.getElementById("orderBox").style.display = "block";
+            autoSellTimeout = setTimeout(() => { if (pendingOrder) acceptSell(offerPrice); }, 5000);
+        }
+
+        /* Accept sell (player sells to NPC) */
+        function acceptSell(offerPrice) {
+            if (!pendingOrder) return;
+            const { symbol, qty } = pendingOrder;
+            const invested = portfolio[symbol] ? portfolio[symbol].avgPrice * qty : 0;
+            const revenue = offerPrice * qty;
+            balance += revenue;
+            if (portfolio[symbol]) {
+                portfolio[symbol].qty -= qty;
+                if (portfolio[symbol].qty <= 0) delete portfolio[symbol];
+            }
+            const stock = stocks.find(s => s.symbol === symbol);
+            if (stock && Math.random() < 0.8) {
+                const bump = Math.max(0.5, stock.price * 0.02);
+                stock.price = +(stock.price + bump).toFixed(2);
+                stock.history.push(stock.price);
+                if (stock.history.length > 50) stock.history.shift();
+                notify(`💰 Sold ${qty} ${symbol} for $${revenue.toFixed(2)} — NPC bought and market ticked up.`, "#16a34a");
+                flashEffect(symbol, "green", "portfolio"); flashEffect(symbol, "green", "balance");
+            } else {
+                notify(`💰 Sold ${qty} ${symbol} for $${revenue.toFixed(2)} — NPC bought but market did not move.`, "#444");
+                flashEffect(symbol, "red", "balance");
+            }
+            pendingOrder = null;
+            document.getElementById("orderBox").style.display = "none";
+            clearTimeout(autoSellTimeout);
+            renderPortfolio();
+            saveData();
+        }
+
+        /* ---------------------------
+           Rendering utilities
+           --------------------------- */
+        const marketEl = document.getElementById("market");
+        function ensureStockElement(stock) {
+            let el = document.getElementById(`stock-${stock.symbol}`);
+            if (el) return el;
+
+            el = document.createElement("div");
+            el.className = "stock";
+            el.id = `stock-${stock.symbol}`;
+            el.innerHTML = `
+                <div class="stock-header"><strong id="title-${stock.symbol}">${stock.name} (${stock.symbol})</strong>
+                    <span id="price-${stock.symbol}">$${stock.price.toFixed(2)}</span>
+                </div>
+                <canvas id="chart-${stock.symbol}" height="80"></canvas>
+                <div style="margin-top:8px;">
+                    <input type="number" id="qty-${stock.symbol}" value="1" min="1" style="width:60px;" />
+                    <button class="buy" id="buyBtn-${stock.symbol}">Buy</button>
+                    <button class="sell" id="sellBtn-${stock.symbol}">Sell</button>
+                    <button class="jump" id="fileBtn-${stock.symbol}" style="display:none;">File Bankruptcy</button>
+                    <button class="jump" id="buyCo-${stock.symbol}" style="display:none;">Buy Company</button>
+                    <span id="owner-${stock.symbol}" style="margin-left:8px; font-size:12px; color:#333;"></span>
+                </div>
+                <div class="orders-list" id="orders-${stock.symbol}"></div>
+            `;
+            marketEl.appendChild(el);
+
+            document.getElementById(`buyBtn-${stock.symbol}`).onclick = () => buyStock(stock.symbol);
+            document.getElementById(`sellBtn-${stock.symbol}`).onclick = () => sellStock(stock.symbol);
+
+            document.getElementById(`fileBtn-${stock.symbol}`).onclick = () => {
+                if (!stock.vulnerable) return notify("Company not eligible for filing bankruptcy yet.", "#b91c1c");
+
+                // No need to check owner now, only player-owned vulnerable companies can see this button
+                stock.dead = true;
+                stock.bankruptAt = Date.now();
+                markAsDead(stock);
+                cleanupPortfolio();
+                updateStockElement(stock);
+                notify(`${stock.name} has been filed for Bankruptcy.`, "#b91c1c");
+                saveData();
+            };
+
+
+            document.getElementById(`buyCo-${stock.symbol}`).onclick = () => {
+                // You can buy bankrupt company after cooldown for a minimum of 5000
+                if (stock.dead && stock.bankruptAt && Date.now() - stock.bankruptAt > 15000) {
+                    const cost = Math.max(5000, Math.round(stock.history[stock.history.length - 1] || 20));
+                    if (balance >= cost) {
+                        balance -= cost;
+                        stock.dead = false;
+                        stock.owner = 'player';
+                        stock.price = Math.max(stock.price, 25); // give a safer jump
+                        stock.history.push(stock.price);
+                        stock.bankruptAt = null;
+                        stock.debtDraining = false;
+                        stock.recentlyRevived = Date.now();
+                        stock.vulnerable = false;
+                        updateStockElement(stock);
+                        renderPortfolio();
+                        notify(`You bought ${stock.name} for $${cost}. You are now owner.`, "#16a34a");
+                        saveData();
+                    } else {
+                        notify("Not enough balance to buy company.", "#b91c1c");
+                    }
+                } else {
+                    notify("Company not available to buy yet.", "#b91c1c");
+                }
+            };
+
+            const ctx = document.getElementById(`chart-${stock.symbol}`).getContext("2d");
+            charts[stock.symbol] = new Chart(ctx, {
+                type: 'line',
+                data: { labels: stock.history.map((_, i) => i), datasets: [{ label: 'Price', data: stock.history, borderColor: 'red', borderWidth: 2, fill: false, tension: 0.1 }] },
+                options: { plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { beginAtZero: false } } }
+            });
+
+            return el;
+        }
+
+        function updateStockElement(stock) {
+            const el = ensureStockElement(stock);
+            const priceEl = document.getElementById(`price-${stock.symbol}`);
+            if (priceEl) priceEl.textContent = `$${stock.price.toFixed(2)}`;
+
+            const ch = charts[stock.symbol];
+            if (ch) {
+                ch.data.labels = stock.history.map((_, i) => i);
+                ch.data.datasets[0].data = stock.history;
+                ch.update();
+            }
+
+            const ordersContainer = document.getElementById(`orders-${stock.symbol}`);
+            if (ordersContainer) {
+                if (!stock.sellOrders || stock.sellOrders.length === 0) {
+                    ordersContainer.innerHTML = `<div style="font-size:13px; color:#666;">No sell orders</div>`;
+                } else {
+                    let html = "";
+                    stock.sellOrders.forEach(order => {
+                        if (order.owner === 'player') {
+                            html += `<div class="order-item" id="order-${order.id}">
+                                        <div><strong>${order.qty} @ $${order.price.toFixed(2)}</strong>
+                                        <div class="order-meta">you • placed ${Math.round((Date.now() - order.placedAt) / 1000)}s ago ${order.autoAdjust ? '• auto' : ''}</div></div>
+                                        <div>
+                                            <button class="small-btn jump" data-edit="${order.id}">Edit</button>
+                                            <button class="small-btn sell" data-cancel="${order.id}">Cancel</button>
+                                        </div>
+                                     </div>`;
+                        } else {
+                            html += `<div class="order-item" id="order-${order.id}">
+                                        <div><strong>${order.qty} @ $${order.price.toFixed(2)}</strong>
+                                        <div class="order-meta">${order.owner} • placed ${Math.round((Date.now() - order.placedAt) / 1000)}s ago</div></div>
+                                        <div>
+                                            <button class="small-btn buy" data-buynpc="${order.id}">Buy Order</button>
+                                        </div>
+                                     </div>`;
+                        }
+                    });
+                    ordersContainer.innerHTML = html;
+                    ordersContainer.querySelectorAll('[data-edit]').forEach(btn => btn.onclick = () => openEditOrder(stock.symbol, btn.getAttribute('data-edit')));
+                    ordersContainer.querySelectorAll('[data-cancel]').forEach(btn => btn.onclick = () => cancelPlayerOrder(stock.symbol, btn.getAttribute('data-cancel')));
+                    ordersContainer.querySelectorAll('[data-buynpc]').forEach(btn => btn.onclick = () => buyNpcOrder(stock.symbol, btn.getAttribute('data-buynpc')));
+                }
+            }
+
+            // Owner display text: show "Owned: You" when owner is player
+            const ownerSpan = document.getElementById(`owner-${stock.symbol}`);
+            if (stock.owner === 'player') ownerSpan.textContent = "Owned: You";
+            else ownerSpan.textContent = stock.owner ? `Owned: ${stock.owner}` : "";
+
+            const fileBtn = document.getElementById(`fileBtn-${stock.symbol}`);
+            const buyCoBtn = document.getElementById(`buyCo-${stock.symbol}`);
+
+            
+            // Show vulnerability indicator (and file button only for player-owned)
+            if (!stock.dead) {
+                if (stock.vulnerable && stock.owner === 'player') {
+                    fileBtn.style.display = "inline-block"; // Only player-owned vulnerable companies
+                } else {
+                    fileBtn.style.display = "none"; // Hide for all others
+                }
+                buyCoBtn.style.display = "none";
+            } else {
+                markAsDead(stock);
+                if (!stock.bankruptAt) stock.bankruptAt = Date.now();
+                if (Date.now() - stock.bankruptAt > BUY_COOLDOWN_MS) buyCoBtn.style.display = "inline-block";
+                else buyCoBtn.style.display = "none";
+            }
+
+        }
+
+        function markAsDead(stock) {
+            const div = document.getElementById(`stock-${stock.symbol}`);
+            if (!div) return;
+            if (!div.querySelector(".dead-overlay")) {
+                const overlay = document.createElement("div");
+                overlay.className = "dead-overlay";
+                overlay.textContent = "💀 COMPANY BANKRUPT 💀";
+                div.appendChild(overlay);
+            }
+        }
+
+        /* ---------------------------
+           Orders: place / edit / cancel / buy NPC orders
+           --------------------------- */
+        let currentSellContext = null;
+        document.getElementById("placeSellBtn").onclick = () => {
+            if (!currentSellContext) return;
+            const { symbol, qty } = currentSellContext;
+            const stock = stocks.find(s => s.symbol === symbol);
+            let price = parseFloat(document.getElementById("sellPriceInput").value);
+            let autoAdjust = !!document.getElementById("sellAutoAdjust").checked;
+            if (isNaN(price) || price < 0) return notify("Enter a valid price", "#b91c1c");
+
+            if (!currentSellContext.orderId) {
+                let order = { id: uid('o'), owner: 'player', qty: qty, price: +price.toFixed(2), autoAdjust: !!autoAdjust, placedAt: Date.now() };
+                stock.sellOrders.push(order);
+                portfolio[symbol].qty -= qty;
+                if (portfolio[symbol].qty <= 0) delete portfolio[symbol];
+                notify(`Placed sell order: ${qty} @ $${order.price.toFixed(2)} for ${symbol}`, "#2563eb");
+            } else {
+                const order = stock.sellOrders.find(o => o.id === currentSellContext.orderId && o.owner === 'player');
+                if (order) {
+                    order.price = +price.toFixed(2);
+                    order.autoAdjust = !!autoAdjust;
+                    order.placedAt = Date.now();
+                }
+            }
+
+            document.getElementById("sellBox").style.display = "none";
+            currentSellContext = null;
+            updateStockElement(stock);
+            renderPortfolio();
+            saveData();
+        };
+
+        document.getElementById("cancelSellBtn").onclick = () => { document.getElementById("sellBox").style.display = "none"; currentSellContext = null; };
+
+        function openEditOrder(symbol, orderId) {
+            const stock = stocks.find(s => s.symbol === symbol);
+            if (!stock) return;
+            const order = stock.sellOrders.find(o => o.id === orderId && o.owner === 'player');
+            if (!order) return;
+            currentSellContext = { symbol, qty: order.qty, orderId: order.id };
+            document.getElementById("sellBoxTitle").textContent = `Edit order ${order.qty} @ ${symbol}`;
+            document.getElementById("sellStockInfo").textContent = `${symbol} — Current market price: $${stock.price.toFixed(2)}`;
+            document.getElementById("sellPriceInput").value = order.price.toFixed(2);
+            document.getElementById("sellAutoAdjust").checked = !!order.autoAdjust;
+            document.getElementById("sellBox").style.display = "block";
+        }
+
+        function cancelPlayerOrder(symbol, orderId) {
+            const stock = stocks.find(s => s.symbol === symbol);
+            if (!stock) return;
+            const idx = stock.sellOrders.findIndex(o => o.id === orderId && o.owner === 'player');
+            if (idx === -1) return;
+            const order = stock.sellOrders[idx];
+            if (!portfolio[symbol]) portfolio[symbol] = { qty: 0, avgPrice: order.price };
+            const prev = portfolio[symbol];
+            let totalValue = prev.avgPrice * prev.qty;
+            totalValue += order.price * order.qty;
+            let totalQty = prev.qty + order.qty;
+            portfolio[symbol].qty = totalQty;
+            portfolio[symbol].avgPrice = totalQty ? (totalValue / totalQty) : order.price;
+            stock.sellOrders.splice(idx, 1);
+            updateStockElement(stock);
+            renderPortfolio();
+            notify(`Cancelled sell order and returned ${order.qty} shares to portfolio.`, "#444");
+            saveData();
+        }
+
+        function buyNpcOrder(symbol, orderId) {
+            const stock = stocks.find(s => s.symbol === symbol);
+            const idx = stock.sellOrders.findIndex(o => o.id === orderId && o.owner !== 'player');
+            if (idx === -1) return;
+            const order = stock.sellOrders[idx];
+            const cost = order.qty * order.price;
+            if (balance < cost) return notify("Not enough balance to buy that order.", "#b91c1c");
+            balance -= cost;
+            if (!portfolio[symbol]) portfolio[symbol] = { qty: 0, avgPrice: 0 };
+            const prevTotal = portfolio[symbol].avgPrice * portfolio[symbol].qty;
+            const newTotal = order.price * order.qty;
+            const newQty = portfolio[symbol].qty + order.qty;
+            portfolio[symbol].avgPrice = (prevTotal + newTotal) / newQty;
+            portfolio[symbol].qty = newQty;
+            stock.sellOrders.splice(idx, 1);
+
+            // Buying an NPC order: owner (if player) does not automatically get commission in this version (investor offers cover owner income)
+            notify(`Bought ${order.qty} ${symbol} from NPC at $${order.price.toFixed(2)}.`, "#16a34a");
+            renderPortfolio();
+            updateStockElement(stock);
+            saveData();
+        }
+
+        /* ---------------------------
+           Cleanup portfolio
+           --------------------------- */
+        function cleanupPortfolio() {
+            for (let sym in portfolio) {
+                const stock = stocks.find(s => s.symbol === sym);
+                if (!stock || stock.dead) delete portfolio[sym];
+            }
+        }
+
+        /* ---------------------------
+           NPC behavior & price updates
+           - NO auto-bankruptcy: bankruptcy occurs only when someone clicks "File Bankruptcy" (and only if not owned by you)
+           - When price <= 15 -> stock.vulnerable = true (show file button for non-owned)
+           - If a company reaches 0 AND it's owned by player -> debt drains player's balance; if player goes broke, THEN company becomes bankrupt automatically
+           - Other NPC interactions kept
+           --------------------------- */
+
+        const BUY_COOLDOWN_MS = 15000;
+
+        function updatePrices() {
+            let strugglingCount = 0;
+            stocks.forEach(stock => {
+                if (stock.dead) return;
+
+                let chance = Math.random();
+                let downBias = (stock.luck === "lucky") ? 0.5 : 0.7;
+                let change = (chance < downBias) ? -(Math.random() * 8) : +(Math.random() * 5);
+                let newPrice = Math.max(0, +(stock.price + change).toFixed(2));
+                stock.price = newPrice;
+                stock.history.push(newPrice);
+                if (stock.history.length > 50) stock.history.shift();
+
+                // mark vulnerability when <= 15
+                stock.vulnerable = (newPrice <= 15);
+
+                // Handle bankruptcy automatically
+                if (newPrice <= 0 && !stock.debtDraining) {
+                    if (stock.owner === 'player') {
+                        // Existing player-owned behavior
+                        stock.debtDraining = true;
+                        notify(`${stock.name} hit $0. Drawing from your personal funds...`, "#b91c1c");
+                    } else {
+                        // Non-owned company hits zero: automatically bankrupt
+                        stock.dead = true;
+                        stock.bankruptAt = Date.now();
+                        markAsDead(stock);
+                        notify(`${stock.name} went bankrupt due to collapsing price!`, "#b91c1c");
+                    }
+                }
+
+
+                if (newPrice < 40) strugglingCount++;
+
+                updateStockElement(stock);
+            });
+
+            if (strugglingCount >= Math.floor(stocks.length / 2) && Math.random() < 0.05) {
+                let newCo = generateCompany();
+                stocks.push(newCo);
+                ensureStockElement(newCo);
+                notify(`🚀 New company launched: ${newCo.name} (${newCo.symbol}) at $500`, "#2563eb");
+            }
+
+            // Random unsolicited NPC offer to buy player's shares
+            if (Object.keys(portfolio).length > 0 && Math.random() < 0.1) {
+                let owned = Object.keys(portfolio).filter(sym => {
+                    const s = stocks.find(x => x.symbol === sym);
+                    if (!s) return false;
+                    return !(s.sellOrders || []).some(o => o.owner === 'player');
+                });
+                if (owned.length > 0) {
+                    let sym = owned[Math.floor(Math.random() * owned.length)];
+                    let qty = Math.ceil(Math.random() * portfolio[sym].qty);
+                    makeNpcOffer(sym, qty);
+                }
+            }
+
+            if (stocks.every(s => s.dead)) {
+                let newCo = generateCompany();
+                stocks.push(newCo);
+                ensureStockElement(newCo);
+                notify(`🚀 New company launched: ${newCo.name} (${newCo.symbol}) at $500`, "#2563eb");
+            }
+
+            npcPlaceAndTrade();
+
+            // Debt draining behavior: only applies to owner's companies (player)
+            stocks.forEach(stock => {
+                if (stock.debtDraining && !stock.dead) {
+                    const drain = 5;
+                    if (stock.owner === 'player') {
+                        if (balance > 0) {
+                            balance = Math.max(0, +(balance - drain).toFixed(2));
+                            flashEffect(stock.symbol, "red", "balance");
+                            notify(`${stock.symbol} draining $${drain.toFixed(2)} from your balance.`, "#b91c1c");
+                            if (balance <= 0) {
+                                // You are broke -> company goes bankrupt now (owner unable to support)
+                                stock.dead = true;
+                                stock.bankruptAt = Date.now();
+                                markAsDead(stock);
+                                cleanupPortfolio();
+                                notify(`${stock.name} goes bankrupt after you went broke.`, "#b91c1c");
+                            }
+                        } else {
+                            stock.dead = true;
+                            stock.bankruptAt = Date.now();
+                            markAsDead(stock);
+                            cleanupPortfolio();
+                        }
+                    } else {
+                        // Non-owned zero companies: we don't auto-bankrupt them here (require "File Bankruptcy" click)
+                        // but keep debtDraining false (shouldn't reach here)
+                    }
+                }
+            });
+
+            renderPortfolio();
+            saveData();
+        }
+
+        function npcPlaceAndTrade() {
+            // NPC places random sell orders sometimes
+            if (Math.random() < 0.12) {
+                const alive = stocks.filter(s => !s.dead);
+                if (alive.length > 0) {
+                    const s = alive[Math.floor(Math.random() * alive.length)];
+                    s.sellOrders = s.sellOrders || [];
+                    const qty = Math.ceil(Math.random() * 3);
+                    const offsetPct = (Math.random() * 0.3) - 0.15;
+                    const price = Math.max(0.01, +(s.price * (1 + offsetPct)).toFixed(2));
+                    const order = { id: uid('npc'), owner: 'npc-' + Math.floor(Math.random() * 1000), qty: qty, price: price, autoAdjust: false, placedAt: Date.now() };
+                    s.sellOrders.push(order);
+                    updateStockElement(s);
+                }
+            }
+
+            // Investor offers: if YOU own a company, occasional NPC will propose to invest in it; you can accept/deny
+            stocks.forEach(s => {
+                if (s.owner === 'player' && !s.dead && Math.random() < 0.06) {
+                    const qty = Math.ceil(Math.random() * 5);
+                    const offeredPrice = +(s.price * (1 + (Math.random() * 0.25))).toFixed(2);
+                    const amount = +(offeredPrice * qty).toFixed(2);
+                    pendingInvestor = { symbol: s.symbol, qty, offeredPrice, amount, investorId: 'npc-invest-' + uid('i') };
+                    document.getElementById("orderText").textContent = `Investor offers $${offeredPrice.toFixed(2)} x ${qty} (${amount.toFixed(2)}) to invest in ${s.symbol}. Accept?`;
+                    document.getElementById("acceptBtn").onclick = acceptInvestorOffer;
+                    document.getElementById("rejectBtn").onclick = denyInvestorOffer;
+                    document.getElementById("orderBox").style.display = "block";
+                    setTimeout(() => {
+                        if (pendingInvestor && pendingInvestor.symbol === s.symbol) {
+                            pendingInvestor = null;
+                            document.getElementById("orderBox").style.display = "none";
+                        }
+                    }, 8000);
+                }
+            });
+
+            // NPC buys player's sell orders or NPC-to-NPC trades
+            stocks.forEach(stock => {
+                stock.sellOrders = stock.sellOrders || [];
+                for (let i = stock.sellOrders.length - 1; i >= 0; i--) {
+                    const order = stock.sellOrders[i];
+                    if (order.owner === 'player') {
+                        const attractive = order.price <= stock.price * 0.98;
+                        const chance = attractive ? 0.5 : 0.12;
+                        if (Math.random() < chance) {
+                            // NPC buys your order
+                            const revenue = order.price * order.qty;
+                            balance += revenue;
+                            stock.sellOrders.splice(i, 1);
+                            if (Math.random() < 0.8) {
+                                const bump = Math.max(0.5, stock.price * 0.02);
+                                stock.price = +(stock.price + bump).toFixed(2);
+                                stock.history.push(stock.price);
+                                if (stock.history.length > 50) stock.history.shift();
+                                notify(`NPC bought your ${order.qty} ${stock.symbol} @ $${order.price.toFixed(2)}. Price up.`, "#16a34a");
+                                flashEffect(stock.symbol, "green", "portfolio");
+                                flashEffect(stock.symbol, "green", "balance");
+                            } else {
+                                notify(`NPC bought your ${order.qty} ${stock.symbol} @ $${order.price.toFixed(2)}. Market unchanged.`, "#444");
+                            }
+                            updateStockElement(stock);
+                        }
+                    } else {
+                        const otherNpcBuyChance = 0.02;
+                        if (Math.random() < otherNpcBuyChance) {
+                            stock.sellOrders.splice(i, 1);
+                            if (Math.random() < 0.01) {
+                                const bump = Math.max(0.1, stock.price * 0.01);
+                                stock.price = +(stock.price + bump).toFixed(2);
+                                stock.history.push(stock.price);
+                                if (stock.history.length > 50) stock.history.shift();
+                                notify(`Market tick: NPC-to-NPC trade causes ${stock.symbol} to tick up slightly.`, "#15803d");
+                                updateStockElement(stock);
+                            }
+                        }
+                    }
+                }
+
+                // Auto-adjust player's orders toward market slowly
+                stock.sellOrders.forEach(o => {
+                    if (o.owner === 'player' && o.autoAdjust) {
+                        o.price = +((o.price * 0.95) + (stock.price * 0.05)).toFixed(2);
+                    }
+                });
+            });
+
+            // Cull old NPC orders sometimes
+            stocks.forEach(s => {
+                s.sellOrders = (s.sellOrders || []).filter(o => {
+                    if (o.owner && o.owner.startsWith('npc-') && (Date.now() - o.placedAt) > 60000) {
+                        return Math.random() < 0.3;
+                    }
+                    return true;
+                });
+            });
+        }
+
+        /* Investor accept/deny handlers */
+        function acceptInvestorOffer() {
+            if (!pendingInvestor) return;
+            const p = pendingInvestor;
+            const stock = stocks.find(s => s.symbol === p.symbol);
+            if (!stock) { pendingInvestor = null; document.getElementById("orderBox").style.display = "none"; return; }
+            balance += p.amount;
+            const bump = Math.max(1, stock.price * 0.03);
+            stock.price = +(stock.price + bump).toFixed(2);
+            stock.history.push(stock.price);
+            if (stock.history.length > 50) stock.history.shift();
+            document.getElementById("orderBox").style.display = "none";
+            notify(`Investor invested $${p.amount.toFixed(2)} into ${p.symbol}. You received funds.`, "#16a34a");
+            flashEffect(stock.symbol, "green", "balance");
+            pendingInvestor = null;
+            updateStockElement(stock);
+            renderPortfolio();
+            saveData();
+        }
+
+        function denyInvestorOffer() {
+            if (!pendingInvestor) return;
+            pendingInvestor = null;
+            document.getElementById("orderBox").style.display = "none";
+            notify("You denied the investor offer.", "#444");
+        }
+
+        /* ---------------------------
+           Init / loop
+           --------------------------- */
+        function initMarketOnce() {
+            for (let s of stocks) ensureStockElement(s);
+            stocks.forEach(updateStockElement);
+        }
+
+        initMarketOnce();
+        renderPortfolio();
+        setInterval(updatePrices, 2000);
+
+    </script>
+</body>
+</html>
