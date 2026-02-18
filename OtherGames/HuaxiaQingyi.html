@@ -1,51 +1,59 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="google" content="notranslate" />
-    <title>华夏论坛（严格版）</title>
+    <title>华夏清议坛</title>
     <style>
-        /* 正常界面样式（封禁页将完全移除样式） */
-        body.notranslate {
-            -webkit-text-size-adjust: 100%;
+        /* 正常论坛界面样式（封禁页会完全移除样式） */
+        * {
+            box-sizing: border-box
         }
 
         body {
             margin: 0;
             background: #f5f6f7;
             font-family: Microsoft YaHei, "PingFang SC", sans-serif;
+            color: #222;
         }
 
         .header {
             background: #1f4e79;
             color: #fff;
-            padding: 15px;
-            font-size: 22px;
+            padding: 14px 18px;
+            font-size: 20px;
         }
 
         .container {
             width: 1000px;
             max-width: 96%;
-            margin: 30px auto;
+            margin: 24px auto;
             background: #fff;
-            padding: 20px;
+            padding: 18px;
             border-radius: 6px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+
+        label {
+            display: block;
+            margin-top: 8px;
+            font-size: 14px;
+            color: #333;
         }
 
         input, textarea, select {
             width: 100%;
             padding: 8px;
-            margin: 6px 0;
+            margin-top: 6px;
             border: 1px solid #ccc;
             border-radius: 4px;
-            box-sizing: border-box;
+            background: #fff;
         }
 
         button {
             padding: 8px 14px;
-            margin-top: 8px;
+            margin-top: 10px;
             background: #2d6ca2;
             color: #fff;
             border: none;
@@ -60,8 +68,9 @@
         .notice {
             background: #fff3cd;
             padding: 10px;
-            margin-bottom: 15px;
+            margin-bottom: 12px;
             border-radius: 4px;
+            color: #423108;
         }
 
         .postItem {
@@ -77,6 +86,7 @@
         .postTitle {
             font-weight: 700;
             color: #333;
+            font-size: 16px;
         }
 
         .postMeta {
@@ -86,7 +96,7 @@
         }
 
         .editorToolbar {
-            margin: 6px 0;
+            margin: 8px 0;
         }
 
             .editorToolbar button {
@@ -95,10 +105,11 @@
                 border-radius: 3px;
                 margin-right: 6px;
                 padding: 6px;
+                border: 1px solid #ddd;
             }
 
         .editor {
-            min-height: 140px;
+            min-height: 120px;
             border: 1px solid #ddd;
             padding: 10px;
             border-radius: 4px;
@@ -143,6 +154,47 @@
             flex: 1;
         }
 
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal {
+            background: #fff;
+            padding: 18px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 600px;
+            box-shadow: 0 6px 30px rgba(0,0,0,0.3);
+            color: #222;
+        }
+
+            .modal h2 {
+                margin: 0 0 8px 0;
+            }
+
+            .modal .eng {
+                font-weight: 700;
+                margin-bottom: 6px;
+                color: #111;
+            }
+
+            .modal .chn {
+                color: #333;
+                margin-bottom: 10px;
+            }
+
+        .small-gray {
+            font-size: 12px;
+            color: #666;
+            margin-top: 8px;
+        }
+
         .bad-warning {
             color: #b21b1b;
             font-weight: 700;
@@ -150,19 +202,19 @@
         }
     </style>
 </head>
-<body class="notranslate">
+<body>
     <div id="app"></div>
 
     <script>
-        /* ---------- 数据与配置 ---------- */
-        let account = JSON.parse(localStorage.getItem("account")) || null;
-        let forum = JSON.parse(localStorage.getItem("forum")) || [];
-        let violations = parseInt(localStorage.getItem("violations")) || 0;
-        let banned = localStorage.getItem("banned") === "true";
-        let fakeIP = localStorage.getItem("fakeIP");
+        /* ---------- 本地数据 ---------- */
+        let account = JSON.parse(localStorage.getItem("hq_account")) || null;
+        let forum = JSON.parse(localStorage.getItem("hq_forum")) || [];
+        let violations = parseInt(localStorage.getItem("hq_violations")) || 0;
+        let banned = localStorage.getItem("hq_banned") === "true";
+        let fakeIP = localStorage.getItem("hq_fakeIP");
         if (!fakeIP) {
             fakeIP = "218." + Math.floor(Math.random() * 255) + "." + Math.floor(Math.random() * 255) + "." + Math.floor(Math.random() * 255);
-            localStorage.setItem("fakeIP", fakeIP);
+            localStorage.setItem("hq_fakeIP", fakeIP);
         }
 
         /* 验证词库 */
@@ -176,30 +228,42 @@
             { en: "sun", cn: ["太阳", "太陽"] }
         ];
 
-        /* NPC 设置 */
-        const npcNames = ["社会观察员", "城市评论", "热点关注", "理性之声", "时代见闻", "东方视角"];
-        const npcTitles = ["关于社会发展的几点看法", "城市建设的未来方向", "大家怎么看最近的热点？", "如何提升生活质量？", "谈谈个人成长经历"];
-        const npcReplies = ["请使用中文交流。", "请保持理性讨论。", "建议补充更多细节。", "这个话题值得深入研究。", "请遵守社区规则。"];
+        /* NPC 设置（更真实多样化） */
+        const npcNames = ["江南听雨", "都市观察者", "学术小陈", "路人甲", "论坛管理员助理", "城市笔记"];
+        const npcTitles = [
+            "关于近期城市交通改造的几点看法",
+            "大家对社区配套设施有什么建议？",
+            "如何看待年轻人创业环境的变化？",
+            "分享一次个人成长的小经验",
+            "求推荐：适合周末短途游的地方"
+        ];
+        const npcReplies = [
+            "我觉得可以先从小范围试点，再逐步推广。",
+            "这个建议很好，实践起来可能会很受欢迎。",
+            "可以参考一些成熟城市的经验，结合本地实际。",
+            "保持耐心，循序渐进更容易落地。",
+            "谢谢分享，学到了新的观点。"
+        ];
 
-        /* 敏感词（中/英） */
+        /* 敏感词（中/英），用于判定违规（注意：禁止人身攻击词汇） */
         const badWords = ["傻", "滚", "垃圾", "废物", "操", "fuck", "shit", "bitch", "idiot", "asshole", "motherfucker"];
 
-        /* 保存函数 */
+        /* 保存与读取 */
         function saveAll() {
-            localStorage.setItem("account", JSON.stringify(account));
-            localStorage.setItem("forum", JSON.stringify(forum));
-            localStorage.setItem("violations", String(violations));
-            localStorage.setItem("banned", String(banned));
+            localStorage.setItem("hq_account", JSON.stringify(account));
+            localStorage.setItem("hq_forum", JSON.stringify(forum));
+            localStorage.setItem("hq_violations", String(violations));
+            localStorage.setItem("hq_banned", String(banned));
         }
 
-        /* 敏感词检测（忽略大小写） */
+        /* 检测敏感词（忽略大小写） */
         function containsBad(text) {
             if (!text) return false;
             const t = text.toLowerCase();
             return badWords.some(w => t.includes(w));
         }
 
-        /* 判定是否非中文为主（中文字符占比 < 30%） */
+        /* 是否以中文为主（中文字符占比 < 30% 视为非中文为主） */
         function isMostlyNonChinese(text) {
             if (!text) return false;
             const plain = stripTagsHtml(text);
@@ -208,58 +272,40 @@
             return ch < (plain.length * 0.3);
         }
 
-        /* ---------- 注册（完整字段 + 验证词） ---------- */
+        /* 转义工具 */
+        function escapeHtml(str) {
+            if (!str) return "";
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+        function stripTagsHtml(html) { return (html || "").replace(/<[^>]*>/g, ''); }
+
+        /* ---------- 注册页（包含更多字段） ---------- */
         let currentWord = null;
         function showRegister() {
             currentWord = wordPool[Math.floor(Math.random() * wordPool.length)];
             document.getElementById("app").innerHTML = `
-        <div class="header">华夏论坛 - 注册</div>
+        <div class="header">华夏清议坛 - 注册</div>
         <div class="container">
-          <div class="flexRow">
-            <div class="half">
-              <label>名（First name）：</label>
-              <input id="firstName" placeholder="名">
-            </div>
-            <div class="half">
-              <label>姓（Last name）：</label>
-              <input id="lastName" placeholder="姓">
-            </div>
+          <div class="flexRow" style="display:flex;gap:12px;">
+            <div class="half"><label>名（First name）：</label><input id="firstName" placeholder="例：小明"></div>
+            <div class="half"><label>姓（Last name）：</label><input id="lastName" placeholder="例：张"></div>
           </div>
-
-          <label>用户名：</label>
-          <input id="username" placeholder="用户名（作为登录名）">
-
-          <label>密码：</label>
-          <input type="password" id="password" placeholder="设置密码">
-
-          <div class="flexRow">
-            <div class="half">
-              <label>出生日期：</label>
-              <input type="date" id="dob">
-            </div>
-            <div class="half">
-              <label>性别：</label>
-              <select id="gender">
-                <option value="">请选择</option>
-                <option>男</option>
-                <option>女</option>
-                <option>其他</option>
-              </select>
-            </div>
+          <label>用户名：</label><input id="username" placeholder="用于登录">
+          <label>密码：</label><input type="password" id="password" placeholder="请输入密码">
+          <div style="display:flex;gap:12px;">
+            <div style="flex:1;"><label>出生日期：</label><input type="date" id="dob"></div>
+            <div style="flex:1;"><label>性别：</label><select id="gender"><option value=''>请选择</option><option>男</option><option>女</option><option>其他</option></select></div>
           </div>
-
-          <label>电子邮箱：</label>
-          <input id="email" placeholder="example@domain.cn">
-
-          <div class="smallNote">请将英文单词 <strong>${currentWord.en}</strong> 翻译为中文并填写（例如：${currentWord.cn.join(" / ")})</div>
-          <input id="translate" placeholder="请输入翻译">
-
+          <label>电子邮箱：</label><input id="email" placeholder="example@domain.cn">
+          <div class="smallNote">请将英文单词 <strong>${currentWord.en}</strong> 翻译为中文并填写在下方（例如：${currentWord.cn.join(" / ")})</div>
+          <input id="translate" placeholder="输入翻译（不区分空格）">
           <div id="regMsg" class="error"></div>
           <button onclick="attemptRegister()">提交注册</button>
         </div>
       `;
         }
 
+        /* 注册逻辑，不使用 alert，页面内提示 */
         function attemptRegister() {
             const first = document.getElementById("firstName").value.trim();
             const last = document.getElementById("lastName").value.trim();
@@ -269,7 +315,6 @@
             const gender = document.getElementById("gender").value;
             const email = document.getElementById("email").value.trim();
             let translation = document.getElementById("translate").value.trim();
-
             const msgEl = document.getElementById("regMsg");
             msgEl.innerText = "";
 
@@ -277,32 +322,57 @@
                 msgEl.innerText = "请完整填写所有注册信息。";
                 return;
             }
-
             translation = translation.replace(/\s/g, "");
             const validList = (currentWord.cn || []).map(x => x.replace(/\s/g, ""));
             const ok = validList.some(v => v === translation);
             if (!ok) {
                 msgEl.innerText = "验证失败：翻译不正确。系统将重新生成验证词，请重试。";
-                setTimeout(showRegister, 900);
+                setTimeout(showRegister, 800);
                 return;
             }
 
             account = { first, last, username, dob, gender, email };
             saveAll();
-            showForum();
+            // 注册后显示规则弹窗（英文在上，中文在下），用户需确认后继续
+            showRulesModal();
+        }
+
+        /* ---------- 规则弹窗（英文在上，中文在下；这是页面中唯一出现英文的地方） ---------- */
+        function showRulesModal() {
+            // 构建规则文本：英文版 + 中文版
+            const eng = "This forum requires Chinese language only. Posts in other languages may be removed and may result in sanctions.";
+            const chn = "本论坛仅允许使用中文发言。使用其他语言发布内容可能被删除并受到相应处理。";
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay';
+            modal.innerHTML = `
+        <div class="modal" role="dialog" aria-modal="true">
+          <h2>论坛规则 / Forum Rules</h2>
+          <div class="eng">${eng}</div>
+          <div class="chn">${chn}</div>
+          <div class="small-gray">请确认您已阅读并遵守规则。若再次违规，平台将进行处理（包括封禁）。</div>
+          <div style="text-align:right;margin-top:12px;">
+            <button id="agreeBtn">我已阅读并同意</button>
+          </div>
+        </div>
+      `;
+            document.body.appendChild(modal);
+            document.getElementById('agreeBtn').addEventListener('click', () => {
+                document.body.removeChild(modal);
+                showForum();
+                scheduleNPCPost(); // 启动 NPC 发帖计划
+            });
         }
 
         /* ---------- 论坛首页（仅标题） ---------- */
         function showForum() {
             if (banned) { showBan(); return; }
-
             document.getElementById("app").innerHTML = `
-        <div class="header">华夏论坛</div>
+        <div class="header">华夏清议坛</div>
         <div class="container">
           <div class="notice">欢迎您：${escapeHtml(account.username)}</div>
 
           <label>帖子标题（必填）：</label>
-          <input id="postTitle" placeholder="请填写标题">
+          <input id="postTitle" placeholder="请填写简短标题">
 
           <div class="editorToolbar">
             <button onclick="format('bold')"><b>加粗</b></button>
@@ -314,60 +384,49 @@
           <div id="postMsg" class="error"></div>
           <button onclick="createPost()">发表帖子</button>
 
-          <h3 style="margin-top:20px;">帖子列表</h3>
+          <h3 style="margin-top:18px;">帖子列表</h3>
           <div id="postList"></div>
-          <div id="liveWarning" class="bad-warning" style="display:none;">检测到违规内容，已记录并将触发快速响应。</div>
+          <div id="liveWarning" class="bad-warning" style="display:none;">检测到违规内容，系统正在快速响应。</div>
         </div>
       `;
             renderList();
         }
 
-        /* 编辑器命令 */
-        function format(cmd, val = null) {
-            document.execCommand(cmd, false, val);
-        }
+        /* 编辑命令 */
+        function format(cmd, val = null) { document.execCommand(cmd, false, val); }
 
-        /* 发帖逻辑 - 强制标题 + 内容，检测违规，触发快速NPC回击（10 条 1 秒间隔） */
+        /* 发帖逻辑（标题必填） */
         function createPost() {
             const title = document.getElementById("postTitle").value.trim();
             const content = document.getElementById("editor").innerHTML.trim();
             const postMsg = document.getElementById("postMsg");
-            postMsg.innerText = "";
-            document.getElementById("liveWarning").style.display = "none";
+            if (postMsg) postMsg.innerText = "";
+            if (document.getElementById("liveWarning")) document.getElementById("liveWarning").style.display = "none";
 
             if (!title || !content || content === "<br>") {
-                postMsg.innerText = "标题和内容均为必填项。";
+                if (postMsg) postMsg.innerText = "标题和内容均为必填项。";
                 return;
             }
 
-            // 检测脏词或非中文为主
             const full = title + " " + stripTagsHtml(content);
-            let flaggedBadWords = containsBad(full);
-            let flaggedNonChinese = isMostlyNonChinese(full);
+            const flaggedBadWords = containsBad(full);
+            const flaggedNonChinese = isMostlyNonChinese(full);
 
-            // 创建帖子（不自动阻止发帖，但会记录违规并触发反应）
-            const post = {
-                id: Date.now(),
-                author: account.username,
-                title,
-                content,
-                replies: []
-            };
+            const post = { id: Date.now(), author: account.username, title, content, replies: [] };
             forum.unshift(post);
             saveAll();
             renderList();
             document.getElementById("postTitle").value = "";
             document.getElementById("editor").innerHTML = "";
 
-            // 如果违规 -> 标记、快速 NPC 集体回复（10 条 1 秒间隔）
             if (flaggedBadWords || flaggedNonChinese) {
                 violations++;
                 saveAll();
-                document.getElementById("liveWarning").style.display = "block";
-                triggerFastNPCReplies(post.id, 10, 1000); // 10 条，每 1 秒
+                if (document.getElementById("liveWarning")) document.getElementById("liveWarning").style.display = "block";
+                // 触发 10 条快速回复（1 秒间隔）
+                triggerFastNPCReplies(post.id, 10, 1000);
             }
 
-            // 如果累计达到阈值 -> 立即封禁并显示无样式封禁页
             if (violations >= 2) {
                 banned = true;
                 saveAll();
@@ -376,44 +435,29 @@
             }
         }
 
-        /* 快速 NPC 回应：数量 n，间隔 ms（逐条加入帖子 replies）
-           回复内容为“非侮辱性但强烈的制裁/警告短句” */
+        /* 触发快速 NPC 回复（不含人身攻击，仅行政式警告/提醒） */
         function triggerFastNPCReplies(postId, n, ms) {
             const post = forum.find(p => p.id === postId);
             if (!post) return;
-            let count = 0;
+            let i = 0;
             const phrases = [
-                "该言论已被记录并将被上报。",
-                "请立即停止不当言论，遵守社区规范。",
-                "此类内容会导致封禁，请自重。",
-                "我们已经截图并向管理员报告。",
-                "请使用中文发言，尊重社区规则。",
-                "警告：再次违规将被封禁处理。",
-                "请保持理性，否则将被永久封禁。",
-                "系统提醒：严禁发布违法或攻击性内容。",
-                "社区守则要求文明讨论，请配合。",
-                "您已触犯社区规则，建议立即整改。"
+                "该言论已被记录并可能上报管理员。",
+                "请立即停止非中文或不当言论，遵守社区规则。",
+                "再次违规将被封禁处理，请自重。",
+                "我们已截图并建议管理员审查此条内容。",
+                "请使用中文发言，并保持理性。"
             ];
-            const intervalId = setInterval(() => {
-                if (banned || count >= n || post.replies.length >= 50) {
-                    clearInterval(intervalId);
-                    return;
-                }
-                const phrase = phrases[count % phrases.length];
-                post.replies.push({ author: npcNames[count % npcNames.length], content: phrase });
+            const timer = setInterval(() => {
+                if (banned || i >= n) { clearInterval(timer); return; }
+                post.replies.push({ author: npcNames[i % npcNames.length], content: phrases[i % phrases.length] });
                 saveAll();
-                // 如果当前正在查看该帖，刷新详情界面
-                if (document.getElementById("repliesArea") && currentViewingPostId === postId) {
-                    renderReplies(post);
-                } else {
-                    // 否则刷新列表（显示回复计数）
-                    renderList();
-                }
-                count++;
+                if (currentViewingPostId === postId) { renderReplies(post); }
+                else { renderList(); }
+                i++;
             }, ms);
         }
 
-        /* 渲染标题列表 */
+        /* 渲染标题列表（只显示标题与作者） */
         let currentViewingPostId = null;
         function renderList() {
             const list = document.getElementById("postList");
@@ -422,25 +466,24 @@
             forum.forEach(p => {
                 const div = document.createElement("div");
                 div.className = "postItem";
-                div.innerHTML = `<div class="postTitle">${escapeHtml(p.title)}</div><div class="postMeta">作者：${escapeHtml(p.author)} &nbsp; • &nbsp; 回复：${p.replies.length}</div>`;
+                div.innerHTML = `<div class="postTitle">${escapeHtml(p.title)}</div><div class="postMeta">作者：${escapeHtml(p.author)} • 回复：${p.replies.length}</div>`;
                 div.onclick = () => showPost(p.id);
                 list.appendChild(div);
             });
         }
 
-        /* 帖子详情 */
+        /* 帖子详情页（显示内容、回复、引用、回复编辑器） */
         function showPost(id) {
             currentViewingPostId = id;
             const p = forum.find(x => x.id === id);
             if (!p) return showForum();
-
             document.getElementById("app").innerHTML = `
         <div class="header">${escapeHtml(p.title)}</div>
         <div class="container">
           <div class="smallNote">作者：${escapeHtml(p.author)}</div>
           <div style="margin-top:10px;padding:10px;border:1px solid #eee;border-radius:6px;background:#fff">${p.content}</div>
 
-          <h3 style="margin-top:16px;">回复</h3>
+          <h3 style="margin-top:14px;">回复</h3>
           <div id="repliesArea"></div>
 
           <div style="margin-top:12px;">回复工具栏：
@@ -448,7 +491,6 @@
             <button onclick="formatReply('italic')"><i>I</i></button>
             <button onclick="formatReply('hiliteColor','yellow')">高亮</button>
           </div>
-
           <div id="replyEditor" class="editor" contenteditable="true"></div>
           <div id="replyMsg" class="error"></div>
           <button onclick="submitReply(${p.id})">提交回复</button>
@@ -458,93 +500,69 @@
             renderReplies(p);
         }
 
-        /* 渲染回复（允许富文本展示） */
+        /* 渲染回复（允许显示富文本） */
         function renderReplies(post) {
             const area = document.getElementById("repliesArea");
+            if (!area) return;
             area.innerHTML = "";
             post.replies.forEach((r, idx) => {
                 const div = document.createElement("div");
                 div.className = "reply";
                 div.innerHTML = `<b>${escapeHtml(r.author)}</b>：<div style="margin-top:6px;">${r.content}</div>
-          <div style="margin-top:6px;"><button onclick="quoteReply(${post.id}, ${idx})">引用</button></div>`;
+          <div style="margin-top:6px;"><button onclick="quoteReply(${post.id},${idx})">引用</button></div>`;
                 area.appendChild(div);
             });
         }
 
-        /* 回复编辑器命令（针对 replyEditor） */
-        function formatReply(cmd, val = null) {
-            const editor = document.getElementById("replyEditor");
-            editor.focus();
-            document.execCommand(cmd, false, val);
-        }
+        /* 回复编辑器命令 */
+        function formatReply(cmd, val = null) { const ed = document.getElementById("replyEditor"); if (ed) { ed.focus(); document.execCommand(cmd, false, val); } }
 
-        /* 引用回复到回复编辑器 */
+        /* 引用回复 */
         function quoteReply(postId, replyIdx) {
             const post = forum.find(x => x.id === postId);
             if (!post) return;
             const r = post.replies[replyIdx];
             const editor = document.getElementById("replyEditor");
+            if (!editor) return;
             const quoteHtml = `<div class="quote">引用 ${escapeHtml(r.author)}：<div>${escapeHtml(stripTagsHtml(r.content))}</div></div><br>`;
             editor.innerHTML += quoteHtml;
         }
 
-        /* 提交回复（检测违规并触发快速 NPC 响应） */
+        /* 提交回复（检测违规并触发快速回复） */
         function submitReply(postId) {
             const editor = document.getElementById("replyEditor");
+            if (!editor) return;
             const content = editor.innerHTML.trim();
-            const msgEl = document.getElementById("replyMsg");
-            msgEl.innerText = "";
-            if (!content || content === "<br>") {
-                msgEl.innerText = "回复内容不能为空。";
-                return;
-            }
+            const msg = document.getElementById("replyMsg");
+            if (msg) msg.innerText = "";
+            if (!content || content === "<br>") { if (msg) msg.innerText = "回复不能为空。"; return; }
 
             const post = forum.find(x => x.id === postId);
             const full = stripTagsHtml(content);
-            let flaggedBadWords = containsBad(full);
-            let flaggedNonChinese = isMostlyNonChinese(full);
+            const flaggedBadWords = containsBad(full);
+            const flaggedNonChinese = isMostlyNonChinese(full);
 
-            // 将回复加入
             post.replies.push({ author: account.username, content });
             saveAll();
 
             if (flaggedBadWords || flaggedNonChinese) {
-                violations++;
-                saveAll();
-                // 触发 10 条 1 秒间隔快速 NPC 回复
+                violations++; saveAll();
                 triggerFastNPCReplies(postId, 10, 1000);
             }
-
             if (violations >= 2) {
-                banned = true;
-                saveAll();
-                showBan();
-                return;
+                banned = true; saveAll(); showBan(); return;
             }
-
             showPost(postId);
         }
 
-        /* 工具：转义、去标签 */
-        function escapeHtml(str) {
-            if (!str) return "";
-            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        }
-        function stripTagsHtml(html) {
-            return (html || "").replace(/<[^>]*>/g, '');
-        }
-
         /* ---------- NPC 定期行为 ---------- */
-        /* 每 6 秒为帖子补充普通 NPC 回复（最多 5 条） */
+        /* 每 6 秒补充普通 NPC 回复（最大 5 条） */
         setInterval(() => {
             if (!account || banned) return;
             let changed = false;
             forum.forEach(p => {
                 if (p.replies.length < 5) {
-                    p.replies.push({
-                        author: npcNames[Math.floor(Math.random() * npcNames.length)],
-                        content: npcReplies[Math.floor(Math.random() * npcReplies.length)]
-                    });
+                    p.replies.push({ author: npcNames[Math.floor(Math.random() * npcNames.length)], content: npcReplies[Math.floor(Math.random() * npcReplies.length)] });
                     changed = true;
                 }
             });
@@ -554,74 +572,50 @@
         /* 每 1~5 分钟随机生成 NPC 帖子 */
         function scheduleNPCPost() {
             if (account && !banned) {
-                forum.unshift({
-                    id: Date.now(),
-                    author: npcNames[Math.floor(Math.random() * npcNames.length)],
-                    title: npcTitles[Math.floor(Math.random() * npcTitles.length)],
-                    content: "（系统自动生成）欢迎参与讨论。",
-                    replies: []
-                });
-                saveAll();
-                if (document.getElementById("postList")) renderList();
+                forum.unshift({ id: Date.now(), author: npcNames[Math.floor(Math.random() * npcNames.length)], title: npcTitles[Math.floor(Math.random() * npcTitles.length)], content: "（系统自动生成）欢迎参与讨论。", replies: [] });
+                saveAll(); if (document.getElementById("postList")) renderList();
             }
-            const next = Math.floor(Math.random() * 240000) + 60000; // 1~5 分钟
+            const next = Math.floor(Math.random() * 240000) + 60000;
             setTimeout(scheduleNPCPost, next);
         }
 
-        /* ---------- 封禁页（无样式纯 HTML） ---------- */
+        /* ---------- 封禁页（纯中文无样式） ---------- */
         function showBan() {
-            // 生成封禁编号与时间
             const banId = "HX-" + Math.floor(Math.random() * 900000 + 100000);
             const now = new Date();
             const timeStr = now.getFullYear() + "年" + (now.getMonth() + 1) + "月" + now.getDate() + "日 " + now.toLocaleTimeString();
-
-            // 清空 head（移除样式）并替换 body 为纯 HTML 内容
+            // 清空 head 和 body 样式，写入纯 HTML 内容（无样式）
             document.head.innerHTML = '<meta charset="utf-8"><title>IP 已封禁</title><meta name="google" content="notranslate">';
             document.body.innerHTML = `
         <h1>IP 已封禁</h1>
         <p>尊敬的用户，您的访问已被限制。</p>
-
         <p><strong>封禁编号：</strong> ${banId}</p>
         <p><strong>被封禁的 IP：</strong> ${fakeIP}</p>
         <p><strong>处理时间：</strong> ${timeStr}</p>
-
-        <p><strong>违规原因：</strong> 多次发布违反社区规范的言论（包含不当用语或大量非中文发言）</p>
-
-        <p><strong>执行机构：</strong> 华夏社区管理中心（模拟）</p>
+        <p><strong>违规原因：</strong> 多次发布违反社区规范的言论（包含不当用语或大量非中文发言）。</p>
+        <p><strong>执行机构：</strong> 华夏清议坛 管理中心（模拟）</p>
         <p><strong>责任管理员：</strong> 张网管（模拟）</p>
         <p><strong>联系方式：</strong> service@huaxia-security.cn / 电话：010-8888-8888（模拟）</p>
-
         <h2>申诉</h2>
-        <p>如果您认为本次封禁有误，可填写下方申诉表（此表为本地模拟，不会发送任何真实请求）：</p>
-
+        <p>如需申诉，请填写下表（本地模拟）：</p>
         <form id="appealForm">
           <div>用户名：<br><input name="username" /></div>
           <div>联系方式（电话或邮箱）：<br><input name="contact" /></div>
-          <div>身份证号码（可选）：<br><input name="idnumber" /></div>
+          <div>身份证号（可选）：<br><input name="idnumber" /></div>
           <div>申诉理由：<br><textarea name="reason"></textarea></div>
           <div><button type="submit">提交申诉</button></div>
         </form>
-
         <div id="appealResult" style="margin-top:12px;"></div>
       `;
-
-            // 绑定表单事件（DOM 中存在元素后绑定）
             const form = document.getElementById('appealForm');
             if (form) {
                 form.addEventListener('submit', function (ev) {
                     ev.preventDefault();
                     try {
-                        const data = {
-                            username: this.username.value || '',
-                            contact: this.contact.value || '',
-                            idnumber: this.idnumber.value || '',
-                            reason: this.reason.value || '',
-                            time: new Date().toString()
-                        };
-                        const existing = JSON.parse(localStorage.getItem('huaxia_appeals') || '[]');
-                        existing.push(data);
-                        localStorage.setItem('huaxia_appeals', JSON.stringify(existing));
-                        document.getElementById('appealResult').innerText = '您的申诉已记录，等待审核（模拟）。';
+                        const data = { username: this.username.value || '', contact: this.contact.value || '', idnumber: this.idnumber.value || '', reason: this.reason.value || '', time: new Date().toString() };
+                        const existing = JSON.parse(localStorage.getItem('hq_appeals') || '[]');
+                        existing.push(data); localStorage.setItem('hq_appeals', JSON.stringify(existing));
+                        document.getElementById('appealResult').innerText = '申诉已记录（本地模拟）。';
                         this.querySelectorAll('input,textarea,button').forEach(el => el.disabled = true);
                     } catch (e) {
                         document.getElementById('appealResult').innerText = '申诉提交失败（本地模拟）。';
@@ -630,15 +624,10 @@
             }
         }
 
-        /* ---------- 启动流程 ---------- */
-        if (banned) {
-            showBan();
-        } else if (!account) {
-            showRegister();
-        } else {
-            showForum();
-            scheduleNPCPost();
-        }
+        /* ---------- 启动与保存 ---------- */
+        if (banned) { showBan(); }
+        else if (!account) { showRegister(); }
+        else { showForum(); scheduleNPCPost(); }
         saveAll();
 
     </script>
