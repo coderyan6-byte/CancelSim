@@ -223,29 +223,35 @@
             { en: "sun", cn: ["太阳", "太陽"] }
         ];
 
-        /* NPC 名称、真实感更强的标题与回复 */
+        /* NPC 名称与更真实的标题/长帖与回复 */
         const npcNames = ["江南听雨", "都市观察者", "学术小陈", "路人甲", "社区小刘", "城市笔记", "新闻小站"];
-        const npcTitles = [
-            "今早广播：局部地区有短时强降雨，出行注意",
-            "本地新闻：旧城区改造计划初步讨论稿公开征求意见",
-            "有人求问：周末适合去哪儿短途游？",
-            "转：一篇关于在职进修的经验分享",
-            "社区吐槽：小区停车位不够用，有没有好建议？",
-            "天气播报：今晚清凉，适合散步"
+        const npcShortTitles = [
+            "今早广播：局部有短时强降雨，出行注意",
+            "本地新闻：旧城区改造计划公开征求意见",
+            "求问：周末去哪儿短途游？",
+            "转：在职进修经验分享",
+            "社区吐槽：小区停车位紧张"
+        ];
+        const npcLongArticles = [
+            // 下面每条为 3+ 句的新闻/通告式内容（中文）
+            "市政部门今天发布通告，近期将对部分主次干道进行维护施工，预计每晚22点至次日凌晨施工。施工期间道路可能出现短时拥堵，请市民合理调整出行时间并注意行车安全。有关部门将尽量压缩施工时间，减少对周边居民的影响，并在主要路段设置明显引导标识。",
+            "文化局在本周召开了社区文化座谈会，讨论如何在老城区保留历史风貌的同时，提升公共服务设施。多名代表建议建立小型文化展览空间，并通过志愿者组织开展本土历史讲座。相关计划将先在两处试点社区实施，试点结束后再做推广。",
+            "教育部门近日公布了一项成人教育扶持计划，旨在鼓励在职人员通过线上课程提升技能。该计划提供部分学费补贴，并与多家培训机构合作推出职业进阶课程。参加者需通过初步评估，课程结束后将获得结业证书以便就业参考。",
+            "市气象台发布天气提示，未来三天我市以多云到阴为主，局地有阵雨。气温相对稳定，但早晚温差较大，市民外出请注意增减衣物并做好防雨准备。对于户外活动建议关注临近预报，合理安排时间。",
+            "社区管委会发布了关于小区绿化提升的公告，计划在下月开始更换部分老化的绿植并补充夜间照明。管委会将组织居民代表参与设计意见征集会，欢迎居民提出合理化建议。项目预计两个月内完成，届时将举行简单的绿化验收仪式。"
         ];
         const npcReplies = [
-            "我这儿也在下雨，建议带伞出门。",
-            "改造需要兼顾历史文脉，不能一刀切。",
-            "可以考虑去郊外的古镇，周末人少一点。",
-            "学习这事坚持最重要，合理规划时间即可。",
-            "楼主可以向物业反映，也可以组织邻居联名建议。",
-            "晚上凉爽，适合散步并注意保暖。"
+            "我这儿也在下雨，出门记得带伞。",
+            "关于改造，还是要听听居民意见，别急于求成。",
+            "推荐去郊外的小镇，风景不错且人相对少。",
+            "进修要持之以恒，安排好时间最关键。",
+            "物业可以先统计诉求，再统一向街道反映。"
         ];
 
         /* 敏感词（中/英） */
         const badWords = ["傻", "滚", "垃圾", "废物", "操", "fuck", "shit", "bitch", "idiot", "asshole", "motherfucker"];
 
-        /* 保存函数 */
+        /* 保存数据 */
         function saveAll() {
             localStorage.setItem("hq_account", JSON.stringify(account));
             localStorage.setItem("hq_forum", JSON.stringify(forum));
@@ -261,7 +267,7 @@
             return badWords.some(w => t.includes(w));
         }
 
-        /* 判断是否以中文为主（中文字符占比 < 30% 则视为非中文为主） */
+        /* 非中文为主检测（中文字符占比 < 30%） */
         function isMostlyNonChinese(text) {
             if (!text) return false;
             const plain = stripTagsHtml(text);
@@ -270,7 +276,7 @@
             return ch < (plain.length * 0.3);
         }
 
-        /* 工具：转义与去标签 */
+        /* 转义与去标签 */
         function escapeHtml(str) { if (!str) return ""; return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
         function stripTagsHtml(html) { return (html || "").replace(/<[^>]*>/g, ''); }
 
@@ -357,7 +363,7 @@
             });
         }
 
-        /* ========== 论坛首页（仅显示标题列表） ========== */
+        /* ========== 论坛首页 ========== */
         function showForum() {
             if (banned) { showBan(); return; }
             document.getElementById("app").innerHTML = `
@@ -385,7 +391,7 @@
             renderList();
         }
 
-        /* 编辑器命令 */
+        /* 编辑命令 */
         function format(cmd, val = null) { document.execCommand(cmd, false, val); }
 
         /* 发帖逻辑：标题必填，检测违规并触发快速回复 */
@@ -421,7 +427,7 @@
             }
         }
 
-        /* 触发快速 NPC 回复（行政式警告短句，不含人身侮辱） */
+        /* 触发快速 NPC 回复（行政式警告短句） */
         function triggerFastNPCReplies(postId, n, ms) {
             const post = forum.find(p => p.id === postId);
             if (!post) return;
@@ -443,7 +449,7 @@
             }, ms);
         }
 
-        /* ========== 列表与帖内页面 ========== */
+        /* ========== 列表与帖子页 ========== */
         let currentViewingPostId = null;
         function renderList() {
             const list = document.getElementById("postList");
@@ -499,7 +505,6 @@
             });
         }
 
-        /* 编辑/引用/回复操作 */
         function formatReply(cmd, val = null) { const ed = document.getElementById("replyEditor"); if (ed) { ed.focus(); document.execCommand(cmd, false, val); } }
         function quoteReply(postId, replyIdx) {
             const post = forum.find(x => x.id === postId); if (!post) return;
@@ -534,8 +539,8 @@
             showPost(postId);
         }
 
-        /* ========== NPC 自动行为 ========== */
-        /* 每 6 秒为每个帖子补充普通 NPC 回复（最多 5 条） */
+        /* ========== NPC 自动行为（含长帖生成） ========== */
+        /* 每 6 秒为帖子补充普通 NPC 回复（最多 5 条） */
         setInterval(() => {
             if (!account || banned) return;
             let changed = false;
@@ -548,10 +553,23 @@
             if (changed) { saveAll(); if (document.getElementById("postList")) renderList(); }
         }, 6000);
 
-        /* 每 1~5 分钟随机生成 NPC 帖子（真实感更强的标题） */
+        /* 每 1~5 分钟随机生成 NPC 帖子：有一定概率生成长文（新闻/播报风格，3+ 句） */
         function scheduleNPCPost() {
             if (account && !banned && rulesAgreed) {
-                forum.unshift({ id: Date.now(), author: npcNames[Math.floor(Math.random() * npcNames.length)], title: npcTitles[Math.floor(Math.random() * npcTitles.length)], content: "欢迎大家在本帖下讨论并分享看法。", replies: [] });
+                const makeLong = Math.random() < 0.5; // 50% 概率生成长文
+                let content = "";
+                let title = "";
+                if (makeLong) {
+                    // 选一条长文章作为内容，标题取其前半句或自造简短标题
+                    const idx = Math.floor(Math.random() * npcLongArticles.length);
+                    content = npcLongArticles[idx];
+                    title = npcLongArticles[idx].split('。')[0].slice(0, 40); // 截取首句作标题
+                    if (!title) title = npcShortTitles[Math.floor(Math.random() * npcShortTitles.length)];
+                } else {
+                    title = npcShortTitles[Math.floor(Math.random() * npcShortTitles.length)];
+                    content = npcReplies[Math.floor(Math.random() * npcReplies.length)];
+                }
+                forum.unshift({ id: Date.now(), author: npcNames[Math.floor(Math.random() * npcNames.length)], title, content, replies: [] });
                 saveAll(); if (document.getElementById("postList")) renderList();
             }
             const next = Math.floor(Math.random() * 240000) + 60000;
@@ -563,7 +581,6 @@
             const banId = "HX-" + Math.floor(Math.random() * 900000 + 100000);
             const now = new Date();
             const timeStr = now.getFullYear() + "年" + (now.getMonth() + 1) + "月" + now.getDate() + "日 " + now.toLocaleTimeString();
-            // 清空 head（移除样式）并替换 body 内容（纯文本）
             document.head.innerHTML = '<meta charset="utf-8"><title>IP 已封禁</title><meta name="google" content="notranslate">';
             document.body.innerHTML = `
         <h1>IP 已封禁</h1>
@@ -574,7 +591,7 @@
         <p><strong>违规原因：</strong> 多次发布违反社区规范的言论（包含不当用语或大量非中文发言）。</p>
         <p><strong>执行机构：</strong> 华夏清议坛 管理中心</p>
         <p><strong>责任管理员：</strong> 张网管</p>
-        <p><strong>联系方式：</strong> service@huaxia-security.cn / 电话：010-8888-8888</p>
+        <p><strong>联系方式：</strong> service@gmail.com / 电话：010-8888-8888</p>
         <h2>申诉</h2>
         <p>如需申诉，请填写下表：</p>
         <form id="appealForm">
@@ -594,7 +611,7 @@
                         const data = { username: this.username.value || '', contact: this.contact.value || '', idnumber: this.idnumber.value || '', reason: this.reason.value || '', time: new Date().toString() };
                         const existing = JSON.parse(localStorage.getItem('hq_appeals') || '[]');
                         existing.push(data); localStorage.setItem('hq_appeals', JSON.stringify(existing));
-                        document.getElementById('appealResult').innerText = '申诉已记录，等待审核。';
+                        document.getElementById('appealResult').innerText = '申诉已记录，等待处理。';
                         this.querySelectorAll('input,textarea,button').forEach(el => el.disabled = true);
                     } catch (e) {
                         document.getElementById('appealResult').innerText = '申诉提交失败。';
@@ -604,6 +621,31 @@
         }
 
         /* ========== 启动流程 ========== */
+        /* 如果没有任何帖子，先添加几条真实感较强的 NPC 长帖示例，帮助页面显得更真实 */
+        if (forum.length === 0) {
+            forum.unshift({
+                id: Date.now() + 1,
+                author: npcNames[6],
+                title: npcLongArticles[0].split('。')[0].slice(0, 40),
+                content: npcLongArticles[0],
+                replies: [
+                    { author: npcNames[0], content: "谢谢提醒，我出门会注意路况。" },
+                    { author: npcNames[1], content: "希望施工时能做好噪音控制，照顾附近居民。" }
+                ]
+            });
+            forum.unshift({
+                id: Date.now() + 2,
+                author: npcNames[5],
+                title: npcLongArticles[1].split('。')[0].slice(0, 40),
+                content: npcLongArticles[1],
+                replies: [
+                    { author: npcNames[2], content: "文化保留很重要，支持先试点后推广。" }
+                ]
+            });
+            saveAll();
+        }
+
+        /* 启动逻辑 */
         if (banned) { showBan(); }
         else if (!account) { showRegister(); }
         else if (!rulesAgreed) { showRulesModal(); }
